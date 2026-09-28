@@ -48,6 +48,121 @@
 - 用一个低 R-factor 代替结构合理性、参数可识别性和残差检查；
 - 将理论模型、模拟曲线或未运行结果标记为实验拟合结果。
 
+## 使用前需要上传什么文件
+
+最稳妥的原则是：**原始扫描负责可追溯性，Athena 工程负责复现数据处理，Artemis 工程负责复现拟合，CIF/FEFF 文件负责复现结构模型。** 如果文件齐全，建议将下列内容按文件夹打包成一个 `.zip` 上传；不要只上传拟合截图。
+
+### 不同任务的最小文件组合
+
+| 使用场景 | 必须上传 | 强烈建议同时上传 | 缺失时的影响 |
+|---|---|---|---|
+| 从原始数据开始完整拟合 | 样品原始扫描、同吸收边参考箔/标准样、列说明和实验信息、候选结构 CIF | Athena `.prj`（如已处理）、全部重复扫描、beamline 记录 | 没有同边标准样时，能量校准与 `S0²`/绝对 CN 的可信度下降 |
+| 已经在 Athena 中处理完成 | Athena `.prj`、候选结构 CIF | 原始扫描、参考箔/标准样、Athena 导出的未加权 `χ(k)` | 只有 `.prj` 而没有原始扫描时，仍可复核多数处理步骤，但原始采集与部分校准问题不能完全追溯 |
+| 继续已有 Artemis 拟合 | Artemis `.fpj` 或 `.dpj`、`fit.log`、对应 CIF/FEFF 目录 | Athena `.prj`、原始扫描、已有参数表、注明需要继续的 fit 快照 | 缺少 FEFF 路径或工程文件时，无法可靠恢复路径选择、约束和相关性 |
+| 只有 Athena 导出数据 | 未加权 `k, χ(k)` 数值文件、Athena 处理参数、候选结构 CIF/FEFF 模型 | 归一化 `μ(E)`、数值 `χ(R)`、数据来源与许可信息 | 不能完整重查能量校准、扫描合并、归一化和 AUTOBK 背景扣除 |
+| 分析论文或外部数据库数据 | 可下载的原始数值文件、来源/DOI、样品与测量条件 | 作者提供的工程文件、CIF、许可证或复用说明 | 只有论文图片时只能做定性判断，不能声称完成可重复的定量拟合 |
+
+### 1. 原始光谱：优先上传什么格式
+
+推荐优先级如下：
+
+1. **`.xdi`：首选。** 它通常同时保存能量、探测器列、单位和实验元数据，最利于自动检查。
+2. **beamline 原始 `.txt`、`.dat` 或 `.csv`：完全可以。** 必须保留原始表头、全部数据行、原始顺序、分隔符和单位，不要手工重采样、删点、平滑或减少小数位。
+3. **Athena `.prj`：强烈推荐，但最好与原始扫描一起上传。** `.prj` 适合复现校准、合并、归一化和背景扣除；它不能总是替代未经修改的 beamline 原始文件。
+4. **`.xlsx`：仅在原始文本确实不可用时接受。** 每列必须有唯一名称和单位，不能使用合并单元格、图表读数或隐藏的手工公式作为唯一数据来源。
+
+原始文件至少应包含以下列：
+
+| 测量模式 | 最少列 | 推荐附加列/说明 |
+|---|---|---|
+| 透射 | `energy_eV`, `I0`, `It` | `Iref` 或参考箔通道、各电离室含义、任何增益切换记录 |
+| 荧光 | `energy_eV`, `I0`, `If`，或每个探测器通道 | `Iref`、死时间校正状态、被排除的通道、总和列的计算方式 |
+| 已计算的 `μ(E)` | `energy_eV`, `mu` | 如仍有 `I0/It/If`，请一并保留；说明 `mu` 的计算式与校正步骤 |
+| Athena 导出的 EXAFS | `k_A^-1`, **未加权** `chi(k)` | 可附加 `kchi`, `k2chi`, `k3chi`，但不要只给一条加权曲线 |
+
+文件名应能明确区分样品、扫描编号和参考箔，例如 `sampleA_scan01.xdi`、`sampleA_scan02.xdi`、`Fe_foil_scan01.xdi`。所有重复扫描都应上传，包括后来判为异常的扫描；只需在元数据中标记排除原因，不要静默删除。
+
+### 2. 标准样和参考文件
+
+若目标包括绝对配位数，必须尽可能提供与样品**相同吸收边**、在相同 beamtime 或相同单色器状态下测得的金属箔或已知配位标准样：
+
+- 能量校准用参考箔的原始扫描或包含该参考通道的 Athena `.prj`；
+- 用于确定 `S0²` 的标准样原始扫描、结构信息和已知配位数；
+- 标准样和未知样的能量校准约定、`k`/`R` 拟合范围和窗口函数说明。
+
+如果没有合适的同边标准样，可以使用有依据的文献值或受约束的 `S0²`，但必须标记来源并进行敏感性分析；此时不应把拟合 CN 报告成不受模型影响的绝对值。
+
+### 3. Athena 已处理文件应怎样上传
+
+如果已经在 Athena 中完成校准、合并或背景扣除，建议上传：
+
+- Athena 工程 `.prj`；
+- 生成该工程的全部原始扫描；
+- Athena 导出的未加权 `χ(k)` 文本文件；
+- 如有，归一化 `μ(E)` 与数值 `χ(R)` 导出；
+- 处理参数：`E0`、归一化区间、`Rbkg`、`kmin/kmax`、`dk`、窗口类型和合并规则。
+
+**只有 Athena 导出的 `.txt/.dat` 也可以开始拟合**，但最低要求是两列数值 `k` 和未加权 `χ(k)`，并同时给出上述处理参数。只给 `k²χ(k)`、`|χ(R)|` 或图片不足以完整恢复拟合输入。
+
+### 4. 继续已有 Artemis 工程时
+
+请尽量将下列文件一起上传：
+
+- Artemis `.fpj` 文件，或完整 `.dpj` 工程目录；
+- 对应的 `fit.log`，以及已有 `summary.tsv`、CSV/XLSX 参数表或拟合报告；
+- 与当前工程完全对应的 CIF、`feff.inp`、`paths.dat`、`feffNNNN.dat`，最好直接上传完整 FEFF 计算目录；
+- Athena `.prj` 与原始扫描；
+- 一份简短说明，写明需要继续的是哪一个 fit、哪些参数固定、哪些路径启用，以及是否存在未保存的手工修改。
+
+不要只上传 `.fpj/.dpj` 的截图或复制出的参数表，因为它们不能恢复 GDS 约束、路径映射、相关矩阵和实际残差。
+
+### 5. 结构与实验元数据
+
+结构模型优先上传实验相对应的 `.cif`。若没有 CIF，请提供材料化学式、物相、空间群、晶胞参数、掺杂/缺陷/表面位点假设及其来源。若使用表面、缺陷或无序的显式模型，应与实验平均结构 CIF 分开命名，避免把理论模型误当成实验精修结构。
+
+另外提供 `metadata.csv` 或 `README.txt`，至少说明：
+
+- 样品名称与文件名映射、吸收元素和吸收边；
+- beamline、测量日期、透射/荧光模式、温度、气氛或电化学条件；
+- 各数据列定义、单位、参考箔位置与能量校准约定；
+- 重复扫描的合并规则、异常扫描和坏通道的排除理由；
+- 预期比较的问题，例如 CN、键长、无序度、不同样品共用参数或多边联合拟合。
+
+### 6. 不应单独作为拟合输入的文件
+
+下列内容可以作为辅助说明，但不能替代数值数据和工程文件：
+
+- PNG/JPG 截图、PDF 图、Origin 图或只有图层而没有导出数值表的 `.opju`；
+- Word/PowerPoint 中的曲线或手工复制、四舍五入后的数据表；
+- 只有 `|χ(R)|` 而没有实部、虚部或原始 `χ(k)` 的曲线；
+- 只有一条 `k²χ(k)`/`k³χ(k)`，却没有未加权 `χ(k)`；
+- 只有 CIF 而没有光谱，或只有光谱而没有结构/FEFF 模型。
+
+### 7. 推荐上传目录
+
+```text
+sample_xafs_input/
+├── 01_raw/
+│   ├── sampleA_scan01.xdi
+│   ├── sampleA_scan02.xdi
+│   └── reference_foil_scan01.xdi
+├── 02_athena/
+│   ├── sample_and_foil.prj
+│   └── sampleA_chik.dat
+├── 03_existing_fit/
+│   ├── sampleA.fpj                 # 或完整 .dpj 目录
+│   ├── fit.log
+│   └── summary.tsv
+├── 04_structure_and_feff/
+│   ├── phase.cif
+│   ├── feff.inp
+│   └── feffNNNN.dat
+├── metadata.csv
+└── README.txt
+```
+
+若只能上传一个压缩包，优先保证顺序为：**原始样品扫描 + 同边参考/标准样 + 元数据 + CIF/FEFF + Athena `.prj` + Artemis 工程**。
+
 ## 完整工作流
 
 | 阶段 | 核心任务 | 必须检查 | 主要输出 |
@@ -301,6 +416,121 @@ Do not use it to:
 - fabricate fitted data when raw spectra, FEFF paths, or an executed fit are missing;
 - treat a low R-factor as a substitute for physical validity, identifiability, and residual inspection;
 - label theoretical, simulated, reconstructed, or unexecuted output as an experimental fit.
+
+## What to upload before fitting
+
+The safest rule is: **raw scans provide traceability, an Athena project reproduces data processing, an Artemis project reproduces the fit, and CIF/FEFF files reproduce the structural model.** When possible, place the items below in one `.zip` archive. Do not upload fit screenshots as the only input.
+
+### Minimum package for each use case
+
+| Use case | Required | Strongly recommended | Consequence if missing |
+|---|---|---|---|
+| Start a complete fit from raw data | sample raw scans, same-edge reference foil/standard, column definitions and experiment metadata, candidate CIF | Athena `.prj` if processing has begun, every repeat scan, beamline notes | without a same-edge standard, energy calibration and `S0²`/absolute CN are less secure |
+| Processing is complete in Athena | Athena `.prj`, candidate CIF | raw scans, reference foil/standard, Athena-exported unweighted `χ(k)` | a `.prj` alone supports most processing checks, but not a full audit of acquisition and every calibration issue |
+| Continue an existing Artemis fit | Artemis `.fpj` or `.dpj`, `fit.log`, matching CIF/FEFF directory | Athena `.prj`, raw scans, current parameter table, identification of the intended fit snapshot | without FEFF paths or the project, path selection, constraints, and correlations cannot be recovered reliably |
+| Only Athena exports are available | numerical unweighted `k, χ(k)`, Athena processing settings, candidate CIF/FEFF model | normalized `μ(E)`, numerical `χ(R)`, provenance and license | energy calibration, merging, normalization, and AUTOBK cannot be fully re-audited |
+| Analyze published or external data | downloadable numerical data, source/DOI, sample and measurement conditions | author project files, CIF, license or reuse statement | a paper figure alone permits only qualitative assessment, not a reproducible quantitative fit |
+
+### 1. Raw spectra: preferred formats
+
+Use this order of preference:
+
+1. **`.xdi`: preferred.** It commonly preserves energy, detector columns, units, and experimental metadata in one machine-readable file.
+2. **Beamline-native `.txt`, `.dat`, or `.csv`: fully acceptable.** Keep the original header, every row, row order, delimiter, and unit. Do not manually resample, delete points, smooth the spectrum, or reduce numerical precision.
+3. **Athena `.prj`: strongly recommended, but preferably together with raw scans.** It helps reproduce calibration, merging, normalization, and background removal, but it does not always replace untouched beamline files.
+4. **`.xlsx`: acceptable only when the original text file is unavailable.** Every column must have a unique name and unit; merged cells, values read from a chart, and hidden manual formulas must not be the sole data source.
+
+At minimum, the raw file should contain:
+
+| Measurement mode | Minimum columns | Recommended additions |
+|---|---|---|
+| Transmission | `energy_eV`, `I0`, `It` | `Iref` or foil channel, ion-chamber definitions, gain-change records |
+| Fluorescence | `energy_eV`, `I0`, `If`, or individual detector channels | `Iref`, dead-time correction status, excluded channels, definition of any summed channel |
+| Precomputed `μ(E)` | `energy_eV`, `mu` | retain `I0/It/If` when available and state the equation and corrections used to calculate `mu` |
+| Athena EXAFS export | `k_A^-1`, **unweighted** `chi(k)` | `kchi`, `k2chi`, and `k3chi` may be included, but do not provide only one weighted curve |
+
+File names should distinguish the sample, repeat, and reference, for example `sampleA_scan01.xdi`, `sampleA_scan02.xdi`, and `Fe_foil_scan01.xdi`. Upload every repeat, including scans later judged abnormal. Mark the exclusion and its reason in metadata instead of silently deleting the file.
+
+### 2. Standards and references
+
+If absolute coordination numbers are a target, provide a metal foil or known-coordination standard measured at the **same absorption edge**, preferably during the same beamtime or under the same monochromator state:
+
+- the raw reference-foil scan or an Athena `.prj` that contains the reference channel;
+- raw data and structural information for the standard used to determine `S0²`, including its known coordination number;
+- the calibration convention, `k`/`R` fit ranges, and window used for both the standard and unknown sample.
+
+If no suitable same-edge standard exists, a justified literature value or constrained `S0²` may be used only with a cited source and sensitivity test. The resulting CN must not be presented as a model-independent absolute value.
+
+### 3. Uploading Athena-processed data
+
+If calibration, merging, or background removal has already been completed in Athena, upload:
+
+- the Athena `.prj` project;
+- every raw scan used to create it;
+- an Athena text export of unweighted `χ(k)`;
+- normalized `μ(E)` and numerical `χ(R)` exports when available;
+- processing settings: `E0`, normalization ranges, `Rbkg`, `kmin/kmax`, `dk`, window type, and merge rule.
+
+**An Athena-exported `.txt` or `.dat` file is sufficient to begin a fit** when it contains at least two numerical columns, `k` and unweighted `χ(k)`, and the processing settings above are supplied. A lone `k²χ(k)`, `|χ(R)|`, or image is not enough to reconstruct the full fitting input.
+
+### 4. Continuing an Artemis project
+
+Upload as many of these files together as possible:
+
+- the Artemis `.fpj` file or complete `.dpj` project directory;
+- its exact `fit.log`, plus any existing `summary.tsv`, CSV/XLSX parameter table, or fit report;
+- the CIF, `feff.inp`, `paths.dat`, and `feffNNNN.dat` files that match the project; the complete FEFF calculation directory is best;
+- the Athena `.prj` and original raw scans;
+- a short note identifying the fit to continue, fixed parameters, enabled paths, and any unsaved manual changes.
+
+Do not provide only a screenshot of the `.fpj/.dpj` project or a copied parameter table. Those cannot restore GDS constraints, path mappings, the correlation matrix, or the actual residuals.
+
+### 5. Structural and experimental metadata
+
+Prefer an experimental `.cif` that matches the measured phase. If no CIF exists, provide the chemical composition, phase, space group, unit cell, dopant/defect/surface-site hypothesis, and source. Name explicit surface, defect, or disordered models separately from the experimental average structure so that a theoretical model is not mistaken for an experimentally refined structure.
+
+Also include a `metadata.csv` or `README.txt` containing at least:
+
+- the sample-to-file mapping, absorber, and absorption edge;
+- beamline, measurement date, transmission/fluorescence mode, temperature, atmosphere, or electrochemical condition;
+- column definitions, units, reference-foil position, and calibration convention;
+- repeat-merging rule and reasons for excluding scans or detector channels;
+- the scientific comparison requested, such as CN, bond length, disorder, shared parameters across samples, or a multi-edge joint fit.
+
+### 6. Files that are not sufficient on their own
+
+These items may accompany the data, but cannot replace numerical inputs and project files:
+
+- PNG/JPG screenshots, PDF figures, Origin plots, or an `.opju` containing plots without exported numerical worksheets;
+- curves embedded in Word/PowerPoint or manually copied and rounded tables;
+- `|χ(R)|` without the real/imaginary components or the original `χ(k)`;
+- only one `k²χ(k)`/`k³χ(k)` curve when unweighted `χ(k)` is unavailable;
+- a CIF without spectra, or spectra without a structural/FEFF model.
+
+### 7. Recommended upload layout
+
+```text
+sample_xafs_input/
+├── 01_raw/
+│   ├── sampleA_scan01.xdi
+│   ├── sampleA_scan02.xdi
+│   └── reference_foil_scan01.xdi
+├── 02_athena/
+│   ├── sample_and_foil.prj
+│   └── sampleA_chik.dat
+├── 03_existing_fit/
+│   ├── sampleA.fpj                 # or the complete .dpj directory
+│   ├── fit.log
+│   └── summary.tsv
+├── 04_structure_and_feff/
+│   ├── phase.cif
+│   ├── feff.inp
+│   └── feffNNNN.dat
+├── metadata.csv
+└── README.txt
+```
+
+If only one archive can be uploaded, prioritize: **raw sample scans + same-edge reference/standard + metadata + CIF/FEFF + Athena `.prj` + Artemis project**.
 
 ## End-to-end workflow
 
