@@ -11,6 +11,8 @@ Build a reproducible chain from raw/reference data to a checked Artemis project.
 
 - For the complete foil → S0² → sample workflow, read [references/workflow.md](references/workflow.md).
 - For absorber-edge choice, elemental-standard structures, coordination, and k-weight selection across elements, read [references/element-guidance.md](references/element-guidance.md).
+- Before interpreting or reporting a fit, read [references/basic-principles.md](references/basic-principles.md) for the EXAFS equation, parameter correlations, Fourier-transform meaning, independent-point limit, and calibration-versus-`Delta E0` distinction.
+- For Athena/Artemis/FEFF downloads or transmission-sample mass, absorber loading, dilution, and edge-step calculations, read [references/software-and-sample-preparation.md](references/software-and-sample-preparation.md).
 - Before downloading spectra or CIFs, read [references/sources.md](references/sources.md). Verify live URLs and licensing; record URL, retrieval time, hash, phase, and citation.
 - When calling Demeter programmatically or repairing/rerunning an FPJ/DPJ, read [references/demeter-api.md](references/demeter-api.md).
 
@@ -24,6 +26,7 @@ Build a reproducible chain from raw/reference data to a checked Artemis project.
 6. Add all materially contributing paths for the chosen R range. Start with the complete first shell, then extend to metal-metal, farther ligand, and multiple-scattering paths only when the window requires them. Select k weighting primarily from the dominant backscatterer, not automatically from the absorber. The historical Teo-Lee heuristic is `k³` for `Zscatterer < 36`, `k²` for `36 < Zscatterer < 57`, and `k¹` for `Zscatterer > 57`; mixed shells and modern quantitative fits should normally be checked with simultaneous k weights 1, 2, and 3.
 7. Prefer the smallest identifiable parameterization. Reject negative `σ²`, unreasonable `|ΔR|`, extreme `ΔE0`, boundary hits, `Nvar >= Nind`, correlations above 0.95, or an inconsistent path/`ipot` mapping even if the R-factor is low.
 8. Report distances as `R = Reff + ΔR`, not `Reff` alone. Report k/R windows, weights, windows, fixed parameters, path degeneracies, uncertainties, correlations, `Nind`, `Nvar`, reduced χ², and R-factor.
+9. For transmission samples, calculate absorber mass from composition, edge, illuminated area, and target edge step. Do not reuse a fixed sample:BN ratio across materials. Treat total catalyst mass, absorber mass fraction, diluent mass, total optical thickness, and edge step as different quantities. A practical starting target is an edge step near 1, total optical thickness around 2–3, and edge step below about 1.5; verify with the beamline and measurement geometry.
 
 ## Reusable helpers
 

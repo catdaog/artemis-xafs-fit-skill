@@ -9,6 +9,8 @@ A reusable Codex skill for an evidence-traceable XAFS workflow:
 5. reject physically invalid or statistically unidentifiable fits;
 6. export a rerunnable project, logs, numerical curves, and model comparison.
 
+It also includes a compact EXAFS theory reference and a transmission-sample preparation guide covering absorber loading, pellet/diluent mass, total optical thickness, and edge-step calculation.
+
 The skill covers multiple absorber elements and edges. It includes the historical Teo–Lee `k^n` heuristic based on the dominant **backscatterer** atomic number, plus modern multi-k validation:
 
 - `Zscatterer < 36`: `k³`
@@ -35,6 +37,20 @@ Then invoke it with `$artemis-xafs-fit-skill` or let Codex select it for Artemis
 - `run_demeter.ps1` — isolated Windows Demeter/FEFF runtime wrapper.
 - `demeter_first_shell_fit.pl` — fixed-`S0²`, explicit-path first-shell fit driver.
 - `audit_fit_log.py` — checks negative `σ²`, extreme shifts, excessive correlations, S0² mismatch, and parameter count.
+
+## Official software and mass calculators
+
+- [Demeter](https://bruceravel.github.io/demeter/) — official Athena, Artemis, and Hephaestus download/documentation page.
+- [FEFF](https://feff.phys.washington.edu/feffproject-feff-download.html) — official FEFF download page, including free EXAFS-focused lite builds.
+- [XAFSmass](https://xafsmass.readthedocs.io/) — calculates XAFS powder mass, thickness, gas pressure, and expected edge step; [source](https://github.com/kklmn/XAFSmass) and [PyPI](https://pypi.org/project/XAFSmass/).
+- [CatMass](https://web.slac.stanford.edu/coaccess/resources/software) — suited to supported catalysts, diluents, complex compositions, and competing edges; [source](https://github.com/ahoffm02/catMass).
+- [CLS X-Mass](https://xasdb.lightsource.ca/xafsmass) — browser-based sample/diluent mass and target-edge-step calculator.
+
+Read `references/software-and-sample-preparation.md` before reusing a sample:BN ratio. The skill distinguishes active-metal loading, absorber mass fraction, catalyst powder mass, diluent mass, total optical thickness, and measured edge step.
+
+## Basic principles added
+
+`references/basic-principles.md` summarizes the EXAFS equation, `N`–`S0²` and `Delta E0`–`Delta R` correlations, phase-shifted Fourier-transform peaks, `R = Reff + Delta R`, radial resolution, the independent-point limit, FEFF path selection, and minimum physical fit checks.
 
 Read `SKILL.md` for the routing instructions and `references/` for the scientific workflow and source policy.
 

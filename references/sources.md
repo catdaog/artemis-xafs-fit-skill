@@ -4,6 +4,8 @@ Verify these links live before use. Prefer primary repositories and the user's s
 
 ## Calibration and Demeter documentation
 
+- Demeter official home/download page: `https://bruceravel.github.io/demeter/`
+- Demeter official source/releases: `https://github.com/bruceravel/demeter/releases`
 - SSRL Edge Analysis: `https://www-ssrl.slac.stanford.edu/pickering/workshop/edgeanalysis.html`
   - Documents use of the first inflection for calibration and the Mo case where the strongest derivative peak is the second feature.
 - Demeter/Artemis fit guide: `https://bruceravel.github.io/demeter/artug/fit/index.html`
@@ -12,6 +14,22 @@ Verify these links live before use. Prefer primary repositories and the user's s
 - Demeter fit output formats: `https://bruceravel.github.io/demeter/documents/DPG/output.html`
 - Teo and Lee amplitude/phase calculations: `https://doi.org/10.1021/ja00505a003`
   - Historical basis for choosing `k^n` with the atomic number of the dominant backscatterer; use as a heuristic and check multiple k weights.
+
+## Sample preparation and absorption calculations
+
+- XAFSmass documentation/source: `https://xafsmass.readthedocs.io/` and `https://github.com/kklmn/XAFSmass`
+- CatMass official Co-ACCESS page/source: `https://web.slac.stanford.edu/coaccess/resources/software` and `https://github.com/ahoffm02/catMass`
+- Canadian Light Source X-Mass browser calculator: `https://xasdb.lightsource.ca/xafsmass`
+- Hephaestus absorption/sample-mass documentation: `https://bruceravel.github.io/demeter/documents/Athena/hephaestus.html`
+- Stern and Kim thickness-effect paper: `https://doi.org/10.1103/PhysRevB.23.3781`
+
+See [software-and-sample-preparation.md](software-and-sample-preparation.md) for formulas, target ranges, software selection, and the required calculation record.
+
+## FEFF
+
+- FEFF official portal: `https://feff.phys.washington.edu/feffproject-portal.html`
+- FEFF official download page: `https://feff.phys.washington.edu/feffproject-feff-download.html`
+- FEFF8 documentation: `https://feff.phys.washington.edu/feff/Docs/feff8/feff8web/`
 
 ## CIFs
 
