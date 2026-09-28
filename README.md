@@ -7,7 +7,8 @@ A reusable Codex skill for an evidence-traceable XAFS workflow:
 3. download and validate experimental CIFs with provenance;
 4. generate/inspect FEFF paths and fit staged shell models through Demeter/Artemis;
 5. reject physically invalid or statistically unidentifiable fits;
-6. export a rerunnable project, logs, numerical curves, and model comparison.
+6. export untouched raw inputs, processed χ(k), k¹/k²/k³ fit tables, complex R-space fit tables, parameter tables, projects, logs, audits, and hashes;
+7. verify the final delivery package before reporting results.
 
 It also includes a compact EXAFS theory reference and a transmission-sample preparation guide covering absorber loading, pellet/diluent mass, total optical thickness, and edge-step calculation.
 
@@ -37,6 +38,7 @@ Then invoke it with `$artemis-xafs-fit-skill` or let Codex select it for Artemis
 - `run_demeter.ps1` — isolated Windows Demeter/FEFF runtime wrapper.
 - `demeter_first_shell_fit.pl` — fixed-`S0²`, explicit-path first-shell fit driver.
 - `audit_fit_log.py` — checks negative `σ²`, extreme shifts, excessive correlations, S0² mismatch, and parameter count.
+- `build_xafs_delivery.py` — builds and verifies the complete raw/k-space/R-space/parameter/project delivery package.
 
 ## Official software and mass calculators
 
@@ -54,6 +56,37 @@ Read `references/software-and-sample-preparation.md` before reusing a sample:BN 
 
 Read `SKILL.md` for the routing instructions and `references/` for the scientific workflow and source policy.
 
+## Required numerical output
+
+An executed fit is not complete until it includes files for:
+
+- untouched raw energy-space inputs;
+- processed `χ(k)` with k¹/k²/k³ columns;
+- k¹/k²/k³ data, fit, residual, and window values;
+- R-space magnitude, real, and imaginary data/fit/residual values;
+- machine-readable and Markdown fit-parameter tables;
+- fit statistics, DPJ/FPJ, log, CIF, FEFF input, audit, and SHA256 manifest where applicable.
+
+See [`references/deliverables.md`](references/deliverables.md) for the exact schema and build command. The packager never overwrites an existing destination.
+
+## Validation
+
+Run the standard-library tests with:
+
+```text
+python -m unittest discover -s tests -v
+```
+
+For a completed fit package:
+
+```text
+python scripts/build_xafs_delivery.py verify --package <delivery-directory>
+```
+
 ## Scientific note
 
 The Teo–Lee rule is a historical starting heuristic, not a substitute for data inspection. Source: B.-K. Teo and P. A. Lee, *J. Am. Chem. Soc.* **101** (1979) 2815–2832, [DOI: 10.1021/ja00505a003](https://doi.org/10.1021/ja00505a003).
+
+## License
+
+MIT. See [`LICENSE`](LICENSE).

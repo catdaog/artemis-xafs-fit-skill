@@ -64,7 +64,24 @@ For a distorted coordination polyhedron, include every split path needed to reco
 
 Use `element-guidance.md` or `scripts/suggest_xafs_settings.py` to identify the historical primary k weight from the dominant backscatterer. Use several k weights when supported (often 1, 2, 3), especially for mixed ligand/metal shells. Compare models on the same data and fit window. A lower R-factor from extra parameters is not sufficient evidence.
 
-## 8. Audit and deliver
+## 8. Apply parameter limits and robustness tests
+
+Read `parameter-constraints.md` before accepting a fit. Compute `Nind`, count every varied parameter, inspect the full correlation matrix, and distinguish warning thresholds from hard rejection conditions. Test modest changes to k/R windows, weights, and path models. Keep the accepted and rejected model records separate.
+
+## 9. Export the numerical fit state
+
+The accepted fit snapshot must export all of the following before any reporting table is prepared:
+
+- untouched raw scans;
+- processed unweighted `χ(k)` using Demeter `save('chi', ...)`;
+- `fit_k1`, `fit_k2`, and `fit_k3` files containing data, fit, residual, and window;
+- `fit_rmag`, `fit_rre`, and `fit_rim` from the same fit snapshot and R grid;
+- path-level parameter and uncertainty table;
+- fit statistics, log, DPJ/FPJ, CIF, FEFF input, calibration record, and model comparison.
+
+Do not reconstruct real or imaginary R-space curves from magnitude. Do not copy values manually from a plot when Demeter can export them numerically. The provided first-shell driver writes the core Demeter exports and standardized parameter tables.
+
+## 10. Audit and deliver
 
 Run `scripts/audit_fit_log.py` and inspect the plots. Reject or clearly label results with:
 
@@ -75,4 +92,4 @@ Run `scripts/audit_fit_log.py` and inspect the plots. Reject or clearly label re
 - `Nvar >= Nind` or nearly saturated degrees of freedom;
 - unstable values/errors, unused GDS variables, missing shell paths, or wrong degeneracies.
 
-Deliver the calibrated data/project, foil `S0²` fit, sample DPJ/FPJ, CIF, FEFF input, fit log, numerical fit curves, parameter/path table, model comparison, calibration record, hashes, and source citations. State `R = Reff + ΔR` explicitly.
+Run `scripts/build_xafs_delivery.py build` with the raw files and all exports, then run `scripts/build_xafs_delivery.py verify`. Deliver the resulting directory described in `deliverables.md`: calibrated data/project, foil `S0²` fit, sample DPJ/FPJ, CIF, FEFF input, fit log, numerical k- and R-space curves, parameter/path table, model comparison, calibration record, hashes, and source citations. State `R = Reff + ΔR` explicitly.
