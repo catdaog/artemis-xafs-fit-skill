@@ -279,6 +279,8 @@ git -C "$env:USERPROFILE\.codex\skills\artemis-xafs-fit-skill" pull --ff-only
 ~/.codex/skills/artemis-xafs-fit-skill
 ```
 
+打包版本可从 [GitHub Releases](https://github.com/catdaog/artemis-xafs-fit-skill/releases) 下载。仓库同时将 `@catdaog/artemis-xafs-fit-skill` 发布到 GitHub Packages；npm 包只是分发载体，安装后的技能目录仍需复制到 Codex skills 目录。
+
 ## 调用示例
 
 在 Codex 中直接调用：

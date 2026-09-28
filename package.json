@@ -1,0 +1,29 @@
+{
+  "name": "@catdaog/artemis-xafs-fit-skill",
+  "version": "1.0.0",
+  "description": "Reproducible Athena, FEFF, and Artemis workflows for multi-element XAFS fitting.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/catdaog/artemis-xafs-fit-skill.git"
+  },
+  "homepage": "https://github.com/catdaog/artemis-xafs-fit-skill#readme",
+  "keywords": [
+    "codex-skill",
+    "xafs",
+    "exafs",
+    "athena",
+    "artemis",
+    "feff"
+  ],
+  "files": [
+    "SKILL.md",
+    "README.md",
+    "agents/",
+    "references/",
+    "scripts/"
+  ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
+  }
+}
