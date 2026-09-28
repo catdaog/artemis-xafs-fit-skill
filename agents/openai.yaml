@@ -1,0 +1,6 @@
+interface:
+  display_name: "Artemis XAFS Fit Skill"
+  short_description: "Calibrate standards and fit multi-element XAFS"
+  default_prompt: "Use $artemis-xafs-fit-skill to calibrate my standard, determine S0², obtain the correct CIF, and fit my EXAFS data in Artemis."
+policy:
+  allow_implicit_invocation: true
