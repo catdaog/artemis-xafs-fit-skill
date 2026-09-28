@@ -10,27 +10,32 @@ Use this reference whenever a standard or sample fit was run. The result must be
 <sample>_xafs_delivery/
 ├── DELIVERY.md
 ├── manifest.json
-├── 01_raw/
-│   └── 001_<original-name>                 byte-for-byte source copy
-├── 02_processed/
+├── 00_OPEN_FIRST/
+│   └── <final-accepted-fit>.fpj|.dpj       final fit; open directly in Artemis
+├── 01_k_space/
 │   ├── chi_k_source.dat                    original processed export
-│   └── chi_k.csv                           k, chi, kchi, k2chi, k3chi, window
-├── 03_fit/
+│   ├── chi_k.csv                           k, chi, kchi, k2chi, k3chi, window
 │   ├── source_exports/                     unchanged Demeter exports
 │   ├── kspace_fit_k1.csv                   k, data, fit, residual, window
 │   ├── kspace_fit_k2.csv
-│   ├── kspace_fit_k3.csv
-│   └── rspace_fit.csv                      magnitude/real/imaginary data, fit, residual
-├── 04_parameters/
-│   ├── source_fit_parameters.tsv              unchanged parameter export
+│   └── kspace_fit_k3.csv
+├── 02_r_space/
+│   ├── source_exports/                     unchanged rmag/rre/rim exports
+│   └── rspace_data_fit.csv                 magnitude/real/imaginary data, fit, residual
+├── 03_parameters/
+│   ├── source_fit_parameters.tsv           unchanged parameter export
 │   ├── fit_parameters.tsv
 │   ├── fit_parameters.md
 │   └── fit_statistics.tsv
-├── 05_models_projects/                     CIF, feff.inp, DPJ/FPJ, fit log
+├── 04_raw_source/
+│   └── 001_<original-name>                 byte-for-byte source copy
+├── 05_models_feff/                         CIF, feff.inp, fit log, supporting models
 └── 06_qa/                                  calibration, audit, comparison, provenance
 ```
 
-Files that do not apply may be omitted only with an explanation in `DELIVERY.md`. Do not create placeholder fit files for an unexecuted fit.
+The accepted `.fpj` or `.dpj` is the primary deliverable and must be listed and linked first in `DELIVERY.md` and in the final response. Before packaging, reopen it in Artemis or load it with the matching Demeter project loader and record that application-level check in the QA records. The builder verifies suffix, non-zero size, copy hash, and location, but those checks alone do not prove project integrity. The k-space and R-space numerical data/fit files come next. Supporting parameters, raw source, FEFF/CIF/log files, and QA records follow afterward.
+
+The primary Artemis project, k-space tables, R-space table, parameter tables, and raw input are mandatory for a completed fit. Other files that do not apply may be omitted only with an explanation in `DELIVERY.md`. Do not create placeholder fit files for an unexecuted fit. If an openable final project cannot be saved, report the run as incomplete or blocked rather than presenting a plot as a completed delivery.
 
 ## Numerical column requirements
 
@@ -82,6 +87,7 @@ Keep theoretical, fitted, derived, and fixed quantities in separate columns. If 
 The package manifest records SHA256, byte size, numeric row count where applicable, and file role. Verification must confirm:
 
 - raw copies match their recorded source hashes;
+- exactly one non-empty `.fpj` or `.dpj` is present in `00_OPEN_FIRST/` and matches the manifest's primary-project entry;
 - the processed and fit tables are numeric and have strictly increasing coordinates;
 - k¹/k²/k³ files retain their respective source grids;
 - `rmag`, `rre`, and `rim` share the same R grid before combination;
@@ -95,13 +101,14 @@ The package manifest records SHA256, byte size, numeric row count where applicab
 python scripts/build_xafs_delivery.py build `
   --output sample_xafs_delivery `
   --sample "Sample name" `
+  --artemis-project accepted_final_fit.fpj `
   --raw raw_scan_01.dat --raw raw_scan_02.dat `
   --processed-chi chi_k.dat `
   --fit-k1 fit_k1.dat --fit-k2 fit_k2.dat --fit-k3 fit_k3.dat `
   --fit-rmag fit_rmag.dat --fit-rre fit_rre.dat --fit-rim fit_rim.dat `
   --parameters fit_parameters.tsv `
   --statistics fit_statistics.tsv `
-  --artifact fit.dpj --artifact fit.log --artifact feff.inp --artifact phase.cif `
+  --artifact fit.log --artifact feff.inp --artifact phase.cif `
   --qa audit.json --qa calibration.json --qa model_comparison.csv
 
 python scripts/build_xafs_delivery.py verify --package sample_xafs_delivery

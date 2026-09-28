@@ -29,7 +29,7 @@ Build a reproducible chain from raw/reference data to a checked Artemis project.
 7. Prefer the smallest identifiable parameterization. Reject negative `σ²`, unreasonable `|ΔR|`, extreme `ΔE0`, boundary hits, `Nvar >= Nind`, correlations above 0.95, or an inconsistent path/`ipot` mapping even if the R-factor is low.
 8. Report distances as `R = Reff + ΔR`, not `Reff` alone. Report k/R windows, weights, windows, fixed parameters, path degeneracies, uncertainties, correlations, `Nind`, `Nvar`, reduced χ², and R-factor.
 9. For transmission samples, calculate absorber mass from composition, edge, illuminated area, and target edge step. Do not reuse a fixed sample:BN ratio across materials. Treat total catalyst mass, absorber mass fraction, diluent mass, total optical thickness, and edge step as different quantities. A practical starting target is an edge step near 1, total optical thickness around 2–3, and edge step below about 1.5; verify with the beamline and measurement geometry.
-10. Do not return plots or prose alone after fitting. Preserve the untouched raw inputs and export the processed `χ(k)`, k-weighted data/fit/residual tables, R-space magnitude/real/imaginary data/fit/residual table, parameter tables, fit project, log, structural inputs, audit, and hashes.
+10. Do not return plots or prose alone after fitting. The first and primary deliverable must be the final accepted `.fpj` or `.dpj` that Artemis can open directly. Reopen it in Artemis or load it with the matching Demeter project loader before delivery, and record the check; extension and non-zero file size alone do not prove project integrity. Next provide the processed `χ(k)` and k-weighted data/fit/residual tables, followed by the R-space magnitude/real/imaginary data/fit/residual table. Preserve untouched raw inputs, parameter tables, log, structural inputs, audit, and hashes as supporting files.
 11. Never label simulated, reconstructed, example, or unexecuted output as fitted data. If Demeter/FEFF cannot run or required inputs are absent, return a missing-input or blocked-run record instead of fabricating numerical fit files.
 
 ## Reusable helpers
@@ -40,7 +40,7 @@ Build a reproducible chain from raw/reference data to a checked Artemis project.
 - `scripts/demeter_first_shell_fit.pl`: reproducible low-parameter first-shell fit with fixed `S0²`, explicit FEFF path indices, and configurable `σ²` grouping.
 - `scripts/audit_fit_log.py`: machine-check common Artemis/Demeter failure modes.
 - `scripts/suggest_xafs_settings.py`: report absorber/edge cautions, likely elemental-foil structure/CN, and Teo-Lee k-weight suggestions from the actual scatterers.
-- `scripts/build_xafs_delivery.py`: validate and assemble untouched raw files, processed `χ(k)`, Demeter k/R fit exports, parameter tables, models, logs, audit files, and a SHA256 manifest into one delivery directory.
+- `scripts/build_xafs_delivery.py`: validate and assemble the primary openable Artemis project first, k-space and R-space numerical data/fit exports next, then untouched raw files, parameter tables, models, logs, audit files, and a SHA256 manifest.
 
 Use the helpers as building blocks, not as permission to select a phase, derivative peak, or FEFF paths without scientific inspection. If automatic and visual checks disagree, pause before changing calibration or the structural model.
 
@@ -48,10 +48,11 @@ Use the helpers as building blocks, not as permission to select a phase, derivat
 
 When a fit was actually run, completion requires a validated delivery directory following [references/deliverables.md](references/deliverables.md). At minimum it contains:
 
-- byte-for-byte copies of all user raw inputs;
-- processed unweighted `χ(k)` plus k¹/k²/k³ data, fit, residual, and window columns;
-- one combined R-space table containing magnitude, real, and imaginary data, fit, and residual columns;
+- `00_OPEN_FIRST/<final-fit>.fpj|.dpj`: exactly one non-empty final accepted project that opens directly in Artemis; this file must be linked first in the final response;
+- `01_k_space/`: processed unweighted `χ(k)` plus k¹/k²/k³ data, fit, residual, and window columns, linked after the project;
+- `02_r_space/`: unchanged magnitude/real/imaginary source exports and one combined R-space data/fit/residual table, linked after k-space;
 - CSV/TSV and Markdown parameter tables that distinguish theoretical degeneracy, amplitude factor, fitted CN, fixed values, uncertainties, `Reff`, `ΔR`, and `R = Reff + ΔR`;
-- DPJ/FPJ, fit log, CIF, `feff.inp`, calibration record, audit JSON, model comparison, and SHA256 manifest when applicable.
+- byte-for-byte copies of all user raw inputs;
+- fit log, CIF, `feff.inp`, calibration record, audit JSON, model comparison, and SHA256 manifest when applicable.
 
-Run `scripts/build_xafs_delivery.py`, then run its `verify` mode on the result. Preserve the original files and explicitly state whether any source file was modified. A fit is not complete merely because an Artemis plot or low R-factor exists.
+Reopen the primary project in Artemis (or load it with the matching Demeter project loader), record that application-level check, run `scripts/build_xafs_delivery.py` with `--artemis-project`, then run its `verify` mode on the result. The builder verifies suffix, non-zero size, copy hash, and package position; it does not replace the application-level reopen test. Preserve the original files and explicitly state whether any source file was modified. If the primary `.fpj`/`.dpj` is absent or cannot be opened, do not call the delivery complete. A fit is not complete merely because an Artemis plot or low R-factor exists.

@@ -201,31 +201,35 @@ sample_xafs_input/
 
 一次实际执行的拟合必须输出文件，而不是只有图片或文字总结：
 
+交付顺序固定为：**先给可由 Artemis 直接打开的最终拟合工程，再给 k 空间原始数据与拟合，随后给 R 空间原始数据与拟合**。最终工程在打包前必须用 Artemis 重新打开（或用匹配的 Demeter project loader 载入）并记录检查；扩展名和非零文件大小本身不能证明工程完整。参数、原始扫描、FEFF/CIF 和审计文件属于支持材料。
+
 ```text
 <sample>_xafs_delivery/
 ├── DELIVERY.md
 ├── manifest.json
-├── 01_raw/
-│   └── 001_<original-name>                 原始文件逐字节副本
-├── 02_processed/
+├── 00_OPEN_FIRST/
+│   └── <final-accepted-fit>.fpj|.dpj       Artemis 直接打开的最终拟合
+├── 01_k_space/
 │   ├── chi_k_source.dat                    原始处理导出
-│   └── chi_k.csv                           k, χ, kχ, k²χ, k³χ, window
-├── 03_fit/
-│   ├── source_exports/                     Demeter 原始拟合导出
+│   ├── chi_k.csv                           k, χ, kχ, k²χ, k³χ, window
+│   ├── source_exports/                     Demeter 原始 k 空间拟合导出
 │   ├── kspace_fit_k1.csv                   data, fit, residual, window
 │   ├── kspace_fit_k2.csv
-│   ├── kspace_fit_k3.csv
-│   └── rspace_fit.csv                      magnitude/real/imaginary
-├── 04_parameters/
+│   └── kspace_fit_k3.csv
+├── 02_r_space/
+│   ├── source_exports/                     Demeter 原始 rmag/rre/rim 导出
+│   └── rspace_data_fit.csv                 magnitude/real/imaginary
+├── 03_parameters/
 │   ├── source_fit_parameters.tsv           未修改参数导出
 │   ├── fit_parameters.tsv                  规范化机器可读表
 │   ├── fit_parameters.md                   Markdown 参数表
 │   └── fit_statistics.tsv
-├── 05_models_projects/                     CIF、feff.inp、DPJ/FPJ、fit.log
+├── 04_raw_source/                          原始文件逐字节副本
+├── 05_models_feff/                         CIF、feff.inp、fit.log、支持模型
 └── 06_qa/                                  校准、审计、模型比较、来源记录
 ```
 
-`rspace_fit.csv` 同时保存：
+`rspace_data_fit.csv` 同时保存：
 
 - `data_mag`, `fit_mag`, `residual_mag`；
 - `data_real`, `fit_real`, `residual_real`；
@@ -316,13 +320,14 @@ git -C "$env:USERPROFILE\.codex\skills\artemis-xafs-fit-skill" pull --ff-only
 python scripts/build_xafs_delivery.py build `
   --output sample_xafs_delivery `
   --sample "Sample name" `
+  --artemis-project accepted_final_fit.fpj `
   --raw raw_scan_01.dat --raw raw_scan_02.dat `
   --processed-chi chi_k.dat `
   --fit-k1 fit_k1.dat --fit-k2 fit_k2.dat --fit-k3 fit_k3.dat `
   --fit-rmag fit_rmag.dat --fit-rre fit_rre.dat --fit-rim fit_rim.dat `
   --parameters fit_parameters.tsv `
   --statistics fit_statistics.tsv `
-  --artifact fit.dpj --artifact fit.log --artifact feff.inp --artifact phase.cif `
+  --artifact fit.log --artifact feff.inp --artifact phase.cif `
   --qa audit.json --qa calibration.json --qa model_comparison.csv
 
 python scripts/build_xafs_delivery.py verify --package sample_xafs_delivery
@@ -572,31 +577,35 @@ Simultaneous k weights 1, 2, and 3 do not triple the independent information con
 
 Every executed fit must return files, not only plots or narrative:
 
+The delivery order is fixed: **first the final Artemis-openable project, then the original/data-and-fit k-space files, then the original/data-and-fit R-space files**. Reopen the final project in Artemis (or load it with the matching Demeter project loader) and record that check before packaging; extension and non-zero size alone do not prove project integrity. Parameters, raw scans, FEFF/CIF inputs, and QA records are supporting material.
+
 ```text
 <sample>_xafs_delivery/
 ├── DELIVERY.md
 ├── manifest.json
-├── 01_raw/
-│   └── 001_<original-name>                 byte-for-byte raw copy
-├── 02_processed/
+├── 00_OPEN_FIRST/
+│   └── <final-accepted-fit>.fpj|.dpj       final fit; open directly in Artemis
+├── 01_k_space/
 │   ├── chi_k_source.dat                    unchanged processed export
-│   └── chi_k.csv                           k, χ, kχ, k²χ, k³χ, window
-├── 03_fit/
-│   ├── source_exports/                     unchanged Demeter fit exports
+│   ├── chi_k.csv                           k, χ, kχ, k²χ, k³χ, window
+│   ├── source_exports/                     unchanged k-space fit exports
 │   ├── kspace_fit_k1.csv                   data, fit, residual, window
 │   ├── kspace_fit_k2.csv
-│   ├── kspace_fit_k3.csv
-│   └── rspace_fit.csv                      magnitude/real/imaginary
-├── 04_parameters/
+│   └── kspace_fit_k3.csv
+├── 02_r_space/
+│   ├── source_exports/                     unchanged rmag/rre/rim exports
+│   └── rspace_data_fit.csv                 magnitude/real/imaginary
+├── 03_parameters/
 │   ├── source_fit_parameters.tsv           unchanged parameter export
 │   ├── fit_parameters.tsv                  normalized machine-readable table
 │   ├── fit_parameters.md                   Markdown table
 │   └── fit_statistics.tsv
-├── 05_models_projects/                     CIF, feff.inp, DPJ/FPJ, fit.log
+├── 04_raw_source/                          byte-for-byte raw copies
+├── 05_models_feff/                         CIF, feff.inp, fit.log, supporting models
 └── 06_qa/                                  calibration, audit, model comparison, provenance
 ```
 
-`rspace_fit.csv` contains magnitude, real, and imaginary data, fit, and residual columns. Demeter's R-space magnitude residual is the magnitude of the complex residual,
+`rspace_data_fit.csv` contains magnitude, real, and imaginary data, fit, and residual columns. Demeter's R-space magnitude residual is the magnitude of the complex residual,
 
 ```text
 |χdata(R) - χfit(R)|
@@ -679,13 +688,14 @@ Build and verify a delivery package:
 python scripts/build_xafs_delivery.py build `
   --output sample_xafs_delivery `
   --sample "Sample name" `
+  --artemis-project accepted_final_fit.fpj `
   --raw raw_scan_01.dat --raw raw_scan_02.dat `
   --processed-chi chi_k.dat `
   --fit-k1 fit_k1.dat --fit-k2 fit_k2.dat --fit-k3 fit_k3.dat `
   --fit-rmag fit_rmag.dat --fit-rre fit_rre.dat --fit-rim fit_rim.dat `
   --parameters fit_parameters.tsv `
   --statistics fit_statistics.tsv `
-  --artifact fit.dpj --artifact fit.log --artifact feff.inp --artifact phase.cif `
+  --artifact fit.log --artifact feff.inp --artifact phase.cif `
   --qa audit.json --qa calibration.json --qa model_comparison.csv
 
 python scripts/build_xafs_delivery.py verify --package sample_xafs_delivery

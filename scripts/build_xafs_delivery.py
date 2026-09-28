@@ -16,7 +16,7 @@ import sys
 from typing import Iterable
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 PARAMETER_COLUMNS = [
     "sample", "path_index", "path", "scatterer", "degeneracy_theory",
     "amplitude_factor", "cn_fit", "reff_A", "delr_A", "delr_error_A",
@@ -25,16 +25,17 @@ PARAMETER_COLUMNS = [
 ]
 MANDATORY_FILES = [
     "DELIVERY.md",
-    "02_processed/chi_k_source.dat",
-    "02_processed/chi_k.csv",
-    "03_fit/kspace_fit_k1.csv",
-    "03_fit/kspace_fit_k2.csv",
-    "03_fit/kspace_fit_k3.csv",
-    "03_fit/rspace_fit.csv",
-    "04_parameters/fit_parameters.tsv",
-    "04_parameters/fit_parameters.md",
-    "04_parameters/fit_statistics.tsv",
+    "01_k_space/chi_k_source.dat",
+    "01_k_space/chi_k.csv",
+    "01_k_space/kspace_fit_k1.csv",
+    "01_k_space/kspace_fit_k2.csv",
+    "01_k_space/kspace_fit_k3.csv",
+    "02_r_space/rspace_data_fit.csv",
+    "03_parameters/fit_parameters.tsv",
+    "03_parameters/fit_parameters.md",
+    "03_parameters/fit_statistics.tsv",
 ]
+ARTEMIS_PROJECT_SUFFIXES = {".fpj", ".dpj"}
 
 
 def sha256(path: Path) -> str:
@@ -121,6 +122,15 @@ def copy_unique(source: Path, destination: Path) -> None:
         raise FileExistsError(destination)
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source, destination)
+
+
+def validate_artemis_project(path: Path) -> None:
+    if not path.is_file():
+        raise FileNotFoundError(path)
+    if path.suffix.lower() not in ARTEMIS_PROJECT_SUFFIXES:
+        raise ValueError("primary Artemis project must be an .fpj or .dpj file")
+    if path.stat().st_size == 0:
+        raise ValueError("primary Artemis project is empty")
 
 
 def read_delimited(path: Path) -> tuple[list[str], list[dict[str, str]]]:
@@ -220,15 +230,19 @@ def build(args: argparse.Namespace) -> int:
             "packaged_path": relative,
         })
 
+    validate_artemis_project(args.artemis_project)
+    project_out = output / "00_OPEN_FIRST" / args.artemis_project.name
+    remember(args.artemis_project, project_out, "primary_openable_artemis_project")
+
     for index, source in enumerate(args.raw, 1):
-        destination = output / "01_raw" / f"{index:03d}_{source.name}"
+        destination = output / "04_raw_source" / f"{index:03d}_{source.name}"
         remember(source, destination, "untouched_raw_input")
 
-    processed_source = output / "02_processed" / "chi_k_source.dat"
+    processed_source = output / "01_k_space" / "chi_k_source.dat"
     remember(args.processed_chi, processed_source, "processed_chi_source_export")
     chi_rows = numeric_rows(args.processed_chi, 6)
     ensure_increasing(chi_rows, "processed chi(k)")
-    chi_out = output / "02_processed" / "chi_k.csv"
+    chi_out = output / "01_k_space" / "chi_k.csv"
     write_csv(
         chi_out,
         ["k_A^-1", "chi", "k1_chi", "k2_chi", "k3_chi", "window"],
@@ -242,7 +256,8 @@ def build(args: argparse.Namespace) -> int:
     }
     fit_rows: dict[str, list[list[float]]] = {}
     for label, source in fit_inputs.items():
-        source_copy = output / "03_fit" / "source_exports" / f"fit_{label}{source.suffix or '.dat'}"
+        fit_directory = "01_k_space" if label.startswith("k") else "02_r_space"
+        source_copy = output / fit_directory / "source_exports" / f"fit_{label}{source.suffix or '.dat'}"
         remember(source, source_copy, f"demeter_fit_{label}_source_export")
         rows = numeric_rows(source, 4)
         ensure_increasing(rows, f"fit {label}")
@@ -254,7 +269,7 @@ def build(args: argparse.Namespace) -> int:
     same_grid(fit_rows["k1"], fit_rows["k2"], "k1/k2")
     same_grid(fit_rows["k1"], fit_rows["k3"], "k1/k3")
     for label in ("k1", "k2", "k3"):
-        destination = output / "03_fit" / f"kspace_fit_{label}.csv"
+        destination = output / "01_k_space" / f"kspace_fit_{label}.csv"
         write_csv(destination, fit_header(len(fit_rows[label][0]), "k_A^-1"), fit_rows[label])
         roles[destination.relative_to(output).as_posix()] = f"normalized_kspace_fit_{label}"
 
@@ -267,7 +282,7 @@ def build(args: argparse.Namespace) -> int:
             mag[0], mag[1], mag[2], mag[3],
             real[1], real[2], real[3], imag[1], imag[2], imag[3], window,
         ])
-    r_out = output / "03_fit" / "rspace_fit.csv"
+    r_out = output / "02_r_space" / "rspace_data_fit.csv"
     write_csv(r_out, [
         "R_A", "data_mag", "fit_mag", "residual_mag",
         "data_real", "fit_real", "residual_real",
@@ -275,35 +290,46 @@ def build(args: argparse.Namespace) -> int:
     ], r_rows)
     roles[r_out.relative_to(output).as_posix()] = "combined_rspace_fit"
 
-    parameter_out = output / "04_parameters" / "fit_parameters.tsv"
-    parameter_md = output / "04_parameters" / "fit_parameters.md"
+    parameter_out = output / "03_parameters" / "fit_parameters.tsv"
+    parameter_md = output / "03_parameters" / "fit_parameters.md"
     parameter_out.parent.mkdir(parents=True, exist_ok=True)
-    parameter_source = output / "04_parameters" / "source_fit_parameters.tsv"
+    parameter_source = output / "03_parameters" / "source_fit_parameters.tsv"
     remember(args.parameters, parameter_source, "source_parameter_table")
     parameter_count = normalize_parameters(parameter_source, parameter_out, parameter_md)
     parameter_invariants(parameter_out)
     roles[parameter_out.relative_to(output).as_posix()] = "machine_readable_parameter_table"
     roles[parameter_md.relative_to(output).as_posix()] = "human_readable_parameter_table"
-    statistics_out = output / "04_parameters" / "fit_statistics.tsv"
+    statistics_out = output / "03_parameters" / "fit_statistics.tsv"
     remember(args.statistics, statistics_out, "fit_statistics")
 
     for source in args.artifact:
-        remember(source, output / "05_models_projects" / source.name, "model_project_or_log")
+        if source.resolve() == args.artemis_project.resolve():
+            continue
+        remember(source, output / "05_models_feff" / source.name, "model_feff_or_log")
     for source in args.qa:
         remember(source, output / "06_qa" / source.name, "qa_calibration_or_provenance")
 
     delivery = output / "DELIVERY.md"
-    raw_lines = "\n".join(f"- `{item['packaged_path']}`" for item in sources if item["packaged_path"].startswith("01_raw/"))
+    raw_lines = "\n".join(
+        f"- `{item['packaged_path']}`"
+        for item in sources if item["packaged_path"].startswith("04_raw_source/")
+    )
     delivery.write_text(
         f"# {args.sample} XAFS fit delivery\n\n"
         f"This package contains numerical data and artifacts from an executed XAFS fit. "
         f"The raw files below are byte-for-byte copies; no source file was overwritten.\n\n"
-        f"## Raw inputs\n\n{raw_lines}\n\n"
-        f"## Core outputs\n\n"
-        f"- `02_processed/chi_k.csv`: processed χ(k) and k¹/k²/k³-weighted data.\n"
-        f"- `03_fit/kspace_fit_k1.csv`, `kspace_fit_k2.csv`, `kspace_fit_k3.csv`: data, fit, residual, and window.\n"
-        f"- `03_fit/rspace_fit.csv`: magnitude, real, and imaginary data/fit/residual on one verified R grid.\n"
-        f"- `04_parameters/fit_parameters.tsv` and `.md`: {parameter_count} path parameter rows.\n"
+        f"## 1. OPEN FIRST — fitted Artemis project\n\n"
+        f"- `{project_out.relative_to(output).as_posix()}`: final accepted fit, directly openable in Artemis.\n\n"
+        f"## 2. k-space original data and fit\n\n"
+        f"- `01_k_space/chi_k_source.dat`: unchanged processed χ(k) export.\n"
+        f"- `01_k_space/chi_k.csv`: processed χ(k) and k¹/k²/k³-weighted data.\n"
+        f"- `01_k_space/kspace_fit_k1.csv`, `kspace_fit_k2.csv`, `kspace_fit_k3.csv`: data, fit, residual, and window.\n\n"
+        f"## 3. R-space original data and fit\n\n"
+        f"- `02_r_space/source_exports/`: unchanged Demeter magnitude, real, and imaginary exports.\n"
+        f"- `02_r_space/rspace_data_fit.csv`: magnitude, real, and imaginary data/fit/residual on one verified R grid.\n\n"
+        f"## Supporting files\n\n"
+        f"- `03_parameters/fit_parameters.tsv` and `.md`: {parameter_count} path parameter rows.\n"
+        f"- Raw inputs:\n{raw_lines}\n"
         f"- `manifest.json`: hashes and provenance for packaged files.\n\n"
         f"## Notes\n\n{args.notes or 'No additional packaging note was supplied.'}\n",
         encoding="utf-8",
@@ -315,6 +341,7 @@ def build(args: argparse.Namespace) -> int:
         "sample": args.sample,
         "created_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
         "builder": "artemis-xafs-fit-skill/scripts/build_xafs_delivery.py",
+        "primary_artemis_project": project_out.relative_to(output).as_posix(),
         "source_inputs": sources,
         "files": inventory(output, roles),
     }
@@ -337,8 +364,19 @@ def verify_package(package: Path) -> dict[str, object]:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if manifest.get("schema_version") != SCHEMA_VERSION:
         raise ValueError("unsupported manifest schema version")
-    if not any((package / "01_raw").glob("*")):
+    if not any((package / "04_raw_source").glob("*")):
         raise ValueError("package has no untouched raw input")
+    project_directory = package / "00_OPEN_FIRST"
+    projects = [
+        path for path in project_directory.glob("*")
+        if path.is_file() and path.suffix.lower() in ARTEMIS_PROJECT_SUFFIXES
+    ]
+    if len(projects) != 1:
+        raise ValueError("package must contain exactly one .fpj or .dpj in 00_OPEN_FIRST")
+    validate_artemis_project(projects[0])
+    expected_project = manifest.get("primary_artemis_project")
+    if expected_project != projects[0].relative_to(package).as_posix():
+        raise ValueError("manifest primary_artemis_project does not match 00_OPEN_FIRST")
     missing = [name for name in MANDATORY_FILES if not (package / name).is_file()]
     if missing:
         raise ValueError(f"package is missing mandatory files: {', '.join(missing)}")
@@ -364,17 +402,17 @@ def verify_package(package: Path) -> dict[str, object]:
             raise ValueError(f"source-copy hash mismatch: {packaged_path}")
 
     for name in ("k1", "k2", "k3"):
-        rows = numeric_rows(package / "03_fit" / f"kspace_fit_{name}.csv", 4)
+        rows = numeric_rows(package / "01_k_space" / f"kspace_fit_{name}.csv", 4)
         ensure_increasing(rows, f"normalized {name}")
         check_residual(rows, f"normalized {name}")
-    r_rows = numeric_rows(package / "03_fit" / "rspace_fit.csv", 10)
+    r_rows = numeric_rows(package / "02_r_space" / "rspace_data_fit.csv", 10)
     ensure_increasing(r_rows, "normalized R-space")
     for component, indices in {
         "real": (4, 5, 6), "imaginary": (7, 8, 9)
     }.items():
         pseudo = [[row[0], row[indices[0]], row[indices[1]], row[indices[2]]] for row in r_rows]
         check_residual(pseudo, f"R-space {component}")
-    parameter_invariants(package / "04_parameters" / "fit_parameters.tsv")
+    parameter_invariants(package / "03_parameters" / "fit_parameters.tsv")
     return {"status": "pass", "package": str(package), "files": len(listed)}
 
 
@@ -384,6 +422,10 @@ def parser() -> argparse.ArgumentParser:
     build_p = sub.add_parser("build", help="assemble a new delivery package")
     build_p.add_argument("--output", type=Path, required=True)
     build_p.add_argument("--sample", required=True)
+    build_p.add_argument(
+        "--artemis-project", type=Path, required=True,
+        help="final accepted Artemis .fpj or .dpj; packaged as the primary file",
+    )
     build_p.add_argument("--raw", type=Path, action="append", required=True)
     build_p.add_argument("--processed-chi", type=Path, required=True)
     build_p.add_argument("--fit-k1", type=Path, required=True)

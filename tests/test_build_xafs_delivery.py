@@ -79,6 +79,8 @@ class DeliveryBuilderTest(unittest.TestCase):
             "r_factor\t0.01\t\t\n",
             encoding="utf-8",
         )
+        self.project = self.base / "accepted_fit.fpj"
+        self.project.write_bytes(b"synthetic Artemis project for package tests\n")
 
     def tearDown(self) -> None:
         self.temp.cleanup()
@@ -87,6 +89,7 @@ class DeliveryBuilderTest(unittest.TestCase):
         return [
             sys.executable, str(SCRIPT), "build", "--output", str(output),
             "--sample", "demo", "--raw", str(self.raw),
+            "--artemis-project", str(self.project),
             "--processed-chi", str(self.chi),
             "--fit-k1", str(self.fit_files["k1"]),
             "--fit-k2", str(self.fit_files["k2"]),
@@ -104,9 +107,17 @@ class DeliveryBuilderTest(unittest.TestCase):
         self.assertEqual(built.returncode, 0, built.stderr)
         payload = json.loads(built.stdout)
         self.assertEqual(payload["status"], "pass")
-        self.assertTrue((output / "03_fit" / "rspace_fit.csv").is_file())
-        self.assertTrue((output / "04_parameters" / "fit_parameters.md").is_file())
+        packaged_project = output / "00_OPEN_FIRST" / "accepted_fit.fpj"
+        self.assertEqual(packaged_project.read_bytes(), self.project.read_bytes())
+        self.assertTrue((output / "01_k_space" / "chi_k.csv").is_file())
+        self.assertTrue((output / "01_k_space" / "kspace_fit_k1.csv").is_file())
+        self.assertTrue((output / "02_r_space" / "rspace_data_fit.csv").is_file())
+        self.assertTrue((output / "03_parameters" / "fit_parameters.md").is_file())
+        delivery = (output / "DELIVERY.md").read_text(encoding="utf-8")
+        self.assertLess(delivery.index("00_OPEN_FIRST"), delivery.index("01_k_space"))
+        self.assertLess(delivery.index("01_k_space"), delivery.index("02_r_space"))
         manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["primary_artemis_project"], "00_OPEN_FIRST/accepted_fit.fpj")
         self.assertGreaterEqual(len(manifest["files"]), 10)
 
         verified = subprocess.run(
@@ -122,6 +133,14 @@ class DeliveryBuilderTest(unittest.TestCase):
         built = subprocess.run(self.command(output), text=True, capture_output=True)
         self.assertEqual(built.returncode, 2)
         self.assertIn("negative sigma2", built.stderr)
+
+    def test_requires_openable_artemis_project(self) -> None:
+        self.project = self.base / "not_a_project.txt"
+        self.project.write_text("not an Artemis project\n", encoding="utf-8")
+        output = self.base / "bad_project_delivery"
+        built = subprocess.run(self.command(output), text=True, capture_output=True)
+        self.assertEqual(built.returncode, 2)
+        self.assertIn("must be an .fpj or .dpj", built.stderr)
 
 
 if __name__ == "__main__":
