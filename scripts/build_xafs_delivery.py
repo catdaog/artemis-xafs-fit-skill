@@ -36,6 +36,11 @@ MANDATORY_FILES = [
     "03_parameters/fit_statistics.tsv",
 ]
 ARTEMIS_PROJECT_SUFFIXES = {".fpj", ".dpj"}
+MINIMAL_FILENAMES = {
+    "k1_data_fit.csv", "k2_data_fit.csv", "k3_data_fit.csv",
+    "R1_data_fit.csv", "R2_data_fit.csv", "R3_data_fit.csv",
+    "fit_parameters.tsv", "FIT_WORKFLOW.txt",
+}
 
 
 def sha256(path: Path) -> str:
@@ -145,7 +150,7 @@ def read_delimited(path: Path) -> tuple[list[str], list[dict[str, str]]]:
     return header, rows
 
 
-def normalize_parameters(source: Path, tsv_out: Path, md_out: Path) -> int:
+def normalize_parameters(source: Path, tsv_out: Path, md_out: Path | None = None) -> int:
     header, rows = read_delimited(source)
     missing = [name for name in PARAMETER_COLUMNS if name not in header]
     if missing:
@@ -155,19 +160,20 @@ def normalize_parameters(source: Path, tsv_out: Path, md_out: Path) -> int:
         writer.writeheader()
         writer.writerows({name: row.get(name, "") for name in PARAMETER_COLUMNS} for row in rows)
 
-    display = [
-        ("sample", "Sample"), ("path", "Path"), ("degeneracy_theory", "N theory"),
-        ("cn_fit", "CN fit"), ("reff_A", "Reff (Å)"), ("delr_A", "ΔR (Å)"),
-        ("r_fit_A", "R fit (Å)"), ("sigma2_A2", "σ² (Å²)"),
-        ("e0_eV", "ΔE0 (eV)"), ("s02", "S0²"),
-        ("r_factor", "R-factor"), ("fit_status", "Status"),
-    ]
-    with md_out.open("w", encoding="utf-8", newline="\n") as handle:
-        handle.write("| " + " | ".join(label for _, label in display) + " |\n")
-        handle.write("| " + " | ".join("---" for _ in display) + " |\n")
-        for row in rows:
-            values = [row.get(name, "").replace("|", "\\|").replace("\n", " ") for name, _ in display]
-            handle.write("| " + " | ".join(values) + " |\n")
+    if md_out is not None:
+        display = [
+            ("sample", "Sample"), ("path", "Path"), ("degeneracy_theory", "N theory"),
+            ("cn_fit", "CN fit"), ("reff_A", "Reff (Å)"), ("delr_A", "ΔR (Å)"),
+            ("r_fit_A", "R fit (Å)"), ("sigma2_A2", "σ² (Å²)"),
+            ("e0_eV", "ΔE0 (eV)"), ("s02", "S0²"),
+            ("r_factor", "R-factor"), ("fit_status", "Status"),
+        ]
+        with md_out.open("w", encoding="utf-8", newline="\n") as handle:
+            handle.write("| " + " | ".join(label for _, label in display) + " |\n")
+            handle.write("| " + " | ".join("---" for _ in display) + " |\n")
+            for row in rows:
+                values = [row.get(name, "").replace("|", "\\|").replace("\n", " ") for name, _ in display]
+                handle.write("| " + " | ".join(values) + " |\n")
     return len(rows)
 
 
@@ -212,7 +218,152 @@ def inventory(package: Path, roles: dict[str, str]) -> list[dict[str, object]]:
     return items
 
 
-def build(args: argparse.Namespace) -> int:
+def require_paths(args: argparse.Namespace, names: Iterable[str], profile: str) -> None:
+    missing = [f"--{name.replace('_', '-')}" for name in names if getattr(args, name) is None]
+    if missing:
+        raise ValueError(f"{profile} profile requires: {', '.join(missing)}")
+
+
+def normalized_fit(source: Path, destination: Path, coordinate: str, label: str) -> list[list[float]]:
+    rows = numeric_rows(source, 4)
+    ensure_increasing(rows, label)
+    if "mag" not in label:
+        check_residual(rows, label)
+    write_csv(destination, fit_header(len(rows[0]), coordinate), rows)
+    return rows
+
+
+def combine_r_components(
+    magnitude: Path, real: Path, imaginary: Path, destination: Path, weight: int
+) -> None:
+    mag_rows = numeric_rows(magnitude, 4)
+    real_rows = numeric_rows(real, 4)
+    imag_rows = numeric_rows(imaginary, 4)
+    for label, rows in (("magnitude", mag_rows), ("real", real_rows), ("imaginary", imag_rows)):
+        ensure_increasing(rows, f"R{weight} {label}")
+    check_residual(real_rows, f"R{weight} real")
+    check_residual(imag_rows, f"R{weight} imaginary")
+    same_grid(mag_rows, real_rows, f"R{weight} magnitude/real")
+    same_grid(mag_rows, imag_rows, f"R{weight} magnitude/imaginary")
+    combined = []
+    for mag, real_row, imag in zip(mag_rows, real_rows, imag_rows):
+        window = mag[-1] if len(mag) > 4 else ""
+        combined.append([
+            mag[0], mag[1], mag[2], mag[3],
+            real_row[1], real_row[2], real_row[3],
+            imag[1], imag[2], imag[3], window,
+        ])
+    write_csv(destination, [
+        "R_A", "data_mag", "fit_mag", "residual_mag",
+        "data_real", "fit_real", "residual_real",
+        "data_imag", "fit_imag", "residual_imag", "window",
+    ], combined)
+
+
+def write_workflow(args: argparse.Namespace, destination: Path) -> None:
+    source_text = ""
+    if args.workflow_source is not None:
+        source_text = args.workflow_source.read_text(encoding="utf-8-sig", errors="strict").strip()
+        if not source_text:
+            raise ValueError("workflow source is empty")
+    raw_names = ", ".join(str(path.resolve()) for path in args.raw) or "not packaged in minimal profile"
+    lines = [
+        f"XAFS FIT WORKFLOW — {args.sample}",
+        "=" * (20 + len(args.sample)),
+        "",
+        "Purpose",
+        "-------",
+        "This file records how the delivered Artemis project and numerical fit tables were generated.",
+        "",
+        "Inputs",
+        "------",
+        f"Raw/Athena inputs: {raw_names}",
+        f"Final Artemis project source: {args.artemis_project.resolve()}",
+        f"Parameter-table source: {args.parameters.resolve()}",
+        "",
+        "Fit and export sequence",
+        "-----------------------",
+        "1. Import and preprocess the measured spectrum in Athena/Demeter without altering the source file.",
+        "2. Calibrate energy, choose the FEFF model and paths, and run the accepted Artemis/Demeter fit.",
+        "3. Save one final DPJ project after the accepted fit.",
+        "4. Export k1, k2 and k3 data/fit/residual tables from the same fit result.",
+        "5. For each R file, set Demeter's plot k-weight to 1, 2 or 3 before exporting magnitude, real and imaginary components.",
+        "6. Combine only components with identical R grids. Magnitude residual is |chi_data(R)-chi_fit(R)|; real and imaginary residuals are data-fit.",
+        "7. Normalize one parameter table and verify CN, R=Reff+DeltaR and non-negative sigma2 invariants.",
+        "8. Recheck the DPJ and package exactly the default nine deliverables.",
+        "",
+        "R-file meaning",
+        "--------------",
+        "R1_data_fit.csv = Fourier transform of k^1*chi(k)",
+        "R2_data_fit.csv = Fourier transform of k^2*chi(k)",
+        "R3_data_fit.csv = Fourier transform of k^3*chi(k)",
+        "Each R file contains magnitude, real and imaginary data, fit and residual columns.",
+        "",
+        "Project integrity check",
+        "-----------------------",
+        args.project_check.strip(),
+    ]
+    if args.notes:
+        lines.extend(["", "Packaging notes", "---------------", args.notes.strip()])
+    if source_text:
+        lines.extend(["", "Executed fit record", "-------------------", source_text])
+    destination.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+
+
+def build_minimal(args: argparse.Namespace) -> int:
+    required = [
+        "fit_k1", "fit_k2", "fit_k3",
+        "fit_r1_mag", "fit_r1_re", "fit_r1_im",
+        "fit_r2_mag", "fit_r2_re", "fit_r2_im",
+        "fit_r3_mag", "fit_r3_re", "fit_r3_im",
+        "parameters", "workflow_source",
+    ]
+    require_paths(args, required, "minimal")
+    output = args.output.resolve()
+    if output.exists():
+        raise FileExistsError(f"refusing to overwrite existing destination: {output}")
+    validate_artemis_project(args.artemis_project)
+    if args.artemis_project.suffix.lower() != ".dpj":
+        raise ValueError("minimal profile requires a final .dpj project")
+    if not args.project_check.strip():
+        raise ValueError("--project-check must record how the final DPJ was reopened or loaded")
+    output.mkdir(parents=True)
+    copy_unique(args.artemis_project, output / args.artemis_project.name)
+
+    k_rows = {}
+    for weight in (1, 2, 3):
+        source = getattr(args, f"fit_k{weight}")
+        k_rows[weight] = normalized_fit(
+            source, output / f"k{weight}_data_fit.csv", "k_A^-1", f"k{weight}"
+        )
+    same_grid(k_rows[1], k_rows[2], "k1/k2")
+    same_grid(k_rows[1], k_rows[3], "k1/k3")
+
+    for weight in (1, 2, 3):
+        combine_r_components(
+            getattr(args, f"fit_r{weight}_mag"),
+            getattr(args, f"fit_r{weight}_re"),
+            getattr(args, f"fit_r{weight}_im"),
+            output / f"R{weight}_data_fit.csv", weight,
+        )
+
+    parameter_count = normalize_parameters(args.parameters, output / "fit_parameters.tsv")
+    parameter_invariants(output / "fit_parameters.tsv")
+    write_workflow(args, output / "FIT_WORKFLOW.txt")
+    result = verify_minimal(output)
+    print(json.dumps({
+        **result, "sample": args.sample, "parameter_rows": parameter_count,
+    }, ensure_ascii=False))
+    return 0
+
+
+def build_audit(args: argparse.Namespace) -> int:
+    require_paths(args, [
+        "processed_chi", "fit_k1", "fit_k2", "fit_k3",
+        "fit_rmag", "fit_rre", "fit_rim", "parameters", "statistics",
+    ], "audit")
+    if not args.raw:
+        raise ValueError("audit profile requires at least one --raw input")
     output = args.output.resolve()
     if output.exists():
         raise FileExistsError(f"refusing to overwrite existing destination: {output}")
@@ -356,6 +507,53 @@ def build(args: argparse.Namespace) -> int:
     return 0
 
 
+def verify_minimal(package: Path) -> dict[str, object]:
+    package = package.resolve()
+    projects = [
+        path for path in package.iterdir()
+        if path.is_file() and path.suffix.lower() == ".dpj"
+    ]
+    if len(projects) != 1:
+        raise ValueError("minimal package must contain exactly one .dpj file")
+    validate_artemis_project(projects[0])
+    expected = MINIMAL_FILENAMES | {projects[0].name}
+    actual = {path.name for path in package.iterdir() if path.is_file()}
+    nested = [path for path in package.iterdir() if path.is_dir()]
+    if nested:
+        raise ValueError("minimal package must be flat and contain no subdirectories")
+    missing = sorted(expected - actual)
+    extra = sorted(actual - expected)
+    if missing or extra:
+        details = []
+        if missing:
+            details.append(f"missing: {', '.join(missing)}")
+        if extra:
+            details.append(f"unexpected: {', '.join(extra)}")
+        raise ValueError("minimal package file set mismatch (" + "; ".join(details) + ")")
+    k_rows = {}
+    for weight in (1, 2, 3):
+        rows = numeric_rows(package / f"k{weight}_data_fit.csv", 4)
+        ensure_increasing(rows, f"k{weight}")
+        check_residual(rows, f"k{weight}")
+        k_rows[weight] = rows
+    same_grid(k_rows[1], k_rows[2], "k1/k2")
+    same_grid(k_rows[1], k_rows[3], "k1/k3")
+    for weight in (1, 2, 3):
+        rows = numeric_rows(package / f"R{weight}_data_fit.csv", 10)
+        ensure_increasing(rows, f"R{weight}")
+        for component, indices in {
+            "real": (4, 5, 6), "imaginary": (7, 8, 9),
+        }.items():
+            pseudo = [[row[0], row[indices[0]], row[indices[1]], row[indices[2]]] for row in rows]
+            check_residual(pseudo, f"R{weight} {component}")
+    parameter_invariants(package / "fit_parameters.tsv")
+    workflow = (package / "FIT_WORKFLOW.txt").read_text(encoding="utf-8")
+    for token in ("k1", "k2", "k3", "R1_data_fit.csv", "R2_data_fit.csv", "R3_data_fit.csv"):
+        if token not in workflow:
+            raise ValueError(f"FIT_WORKFLOW.txt does not explain {token}")
+    return {"status": "pass", "profile": "minimal", "package": str(package), "files": len(actual)}
+
+
 def verify_package(package: Path) -> dict[str, object]:
     package = package.resolve()
     manifest_path = package / "manifest.json"
@@ -423,21 +621,34 @@ def parser() -> argparse.ArgumentParser:
     build_p.add_argument("--output", type=Path, required=True)
     build_p.add_argument("--sample", required=True)
     build_p.add_argument(
+        "--profile", choices=("minimal", "audit"), default="minimal",
+        help="minimal is the default nine-file delivery; audit preserves the extended package",
+    )
+    build_p.add_argument(
         "--artemis-project", type=Path, required=True,
         help="final accepted Artemis .fpj or .dpj; packaged as the primary file",
     )
-    build_p.add_argument("--raw", type=Path, action="append", required=True)
-    build_p.add_argument("--processed-chi", type=Path, required=True)
+    build_p.add_argument("--raw", type=Path, action="append", default=[])
+    build_p.add_argument("--processed-chi", type=Path)
     build_p.add_argument("--fit-k1", type=Path, required=True)
     build_p.add_argument("--fit-k2", type=Path, required=True)
     build_p.add_argument("--fit-k3", type=Path, required=True)
-    build_p.add_argument("--fit-rmag", type=Path, required=True)
-    build_p.add_argument("--fit-rre", type=Path, required=True)
-    build_p.add_argument("--fit-rim", type=Path, required=True)
+    for weight in (1, 2, 3):
+        build_p.add_argument(f"--fit-r{weight}-mag", type=Path)
+        build_p.add_argument(f"--fit-r{weight}-re", type=Path)
+        build_p.add_argument(f"--fit-r{weight}-im", type=Path)
+    build_p.add_argument("--fit-rmag", type=Path, help="audit profile legacy R-magnitude export")
+    build_p.add_argument("--fit-rre", type=Path, help="audit profile legacy R-real export")
+    build_p.add_argument("--fit-rim", type=Path, help="audit profile legacy R-imaginary export")
     build_p.add_argument("--parameters", type=Path, required=True)
-    build_p.add_argument("--statistics", type=Path, required=True)
+    build_p.add_argument("--statistics", type=Path)
     build_p.add_argument("--artifact", type=Path, action="append", default=[])
     build_p.add_argument("--qa", type=Path, action="append", default=[])
+    build_p.add_argument("--workflow-source", type=Path)
+    build_p.add_argument(
+        "--project-check", default="",
+        help="record of reopening the final DPJ in Artemis or loading it with Demeter",
+    )
     build_p.add_argument("--notes")
     verify_p = sub.add_parser("verify", help="verify hashes and numerical invariants")
     verify_p.add_argument("--package", type=Path, required=True)
@@ -448,8 +659,12 @@ def main() -> int:
     args = parser().parse_args()
     try:
         if args.command == "build":
-            return build(args)
-        result = verify_package(args.package)
+            return build_minimal(args) if args.profile == "minimal" else build_audit(args)
+        result = (
+            verify_package(args.package)
+            if (args.package / "manifest.json").is_file()
+            else verify_minimal(args.package)
+        )
         print(json.dumps(result, ensure_ascii=False))
         return 0
     except (OSError, ValueError, json.JSONDecodeError) as exc:

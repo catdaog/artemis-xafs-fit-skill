@@ -49,6 +49,19 @@ class DeliveryBuilderTest(unittest.TestCase):
                     residual = abs(data - fit) * 1.7 if label == "rmag" else data - fit
                     handle.write(f"{coordinate} {data} {fit} {residual} 1\n")
             self.fit_files[label] = path
+        for weight in (1, 2, 3):
+            for component, factor in {"mag": 1.0, "re": 0.6, "im": 0.8}.items():
+                label = f"r{weight}_{component}"
+                path = self.base / f"fit_{label}.dat"
+                with path.open("w", encoding="utf-8") as handle:
+                    handle.write("# coordinate data fit residual window\n")
+                    for i in range(1, 11):
+                        coordinate = i / 10
+                        data = weight * factor * i / 10
+                        fit = data * 0.9
+                        residual = abs(data - fit) * 1.7 if component == "mag" else data - fit
+                        handle.write(f"{coordinate} {data} {fit} {residual} 1\n")
+                self.fit_files[label] = path
 
         self.parameters = self.base / "fit_parameters.tsv"
         columns = [
@@ -79,25 +92,43 @@ class DeliveryBuilderTest(unittest.TestCase):
             "r_factor\t0.01\t\t\n",
             encoding="utf-8",
         )
-        self.project = self.base / "accepted_fit.fpj"
+        self.project = self.base / "accepted_fit.dpj"
         self.project.write_bytes(b"synthetic Artemis project for package tests\n")
+        self.workflow = self.base / "executed_fit_workflow.txt"
+        self.workflow.write_text(
+            "Input: synthetic chi(k)\nModel: synthetic M-O first shell\n"
+            "Windows: k=3-12 A^-1, R=1-2.5 A\n",
+            encoding="utf-8",
+        )
 
     def tearDown(self) -> None:
         self.temp.cleanup()
 
     def command(self, output: Path) -> list[str]:
-        return [
+        command = [
             sys.executable, str(SCRIPT), "build", "--output", str(output),
             "--sample", "demo", "--raw", str(self.raw),
             "--artemis-project", str(self.project),
-            "--processed-chi", str(self.chi),
             "--fit-k1", str(self.fit_files["k1"]),
             "--fit-k2", str(self.fit_files["k2"]),
             "--fit-k3", str(self.fit_files["k3"]),
+            "--parameters", str(self.parameters),
+            "--workflow-source", str(self.workflow),
+            "--project-check", "Loaded with the matching Demeter project loader.",
+        ]
+        for weight in (1, 2, 3):
+            for component in ("mag", "re", "im"):
+                command.extend([
+                    f"--fit-r{weight}-{component}", str(self.fit_files[f"r{weight}_{component}"])
+                ])
+        return command
+
+    def audit_command(self, output: Path) -> list[str]:
+        return self.command(output) + [
+            "--profile", "audit", "--processed-chi", str(self.chi),
             "--fit-rmag", str(self.fit_files["rmag"]),
             "--fit-rre", str(self.fit_files["rre"]),
             "--fit-rim", str(self.fit_files["rim"]),
-            "--parameters", str(self.parameters),
             "--statistics", str(self.statistics),
         ]
 
@@ -107,24 +138,32 @@ class DeliveryBuilderTest(unittest.TestCase):
         self.assertEqual(built.returncode, 0, built.stderr)
         payload = json.loads(built.stdout)
         self.assertEqual(payload["status"], "pass")
-        packaged_project = output / "00_OPEN_FIRST" / "accepted_fit.fpj"
+        packaged_project = output / "accepted_fit.dpj"
         self.assertEqual(packaged_project.read_bytes(), self.project.read_bytes())
-        self.assertTrue((output / "01_k_space" / "chi_k.csv").is_file())
-        self.assertTrue((output / "01_k_space" / "kspace_fit_k1.csv").is_file())
-        self.assertTrue((output / "02_r_space" / "rspace_data_fit.csv").is_file())
-        self.assertTrue((output / "03_parameters" / "fit_parameters.md").is_file())
-        delivery = (output / "DELIVERY.md").read_text(encoding="utf-8")
-        self.assertLess(delivery.index("00_OPEN_FIRST"), delivery.index("01_k_space"))
-        self.assertLess(delivery.index("01_k_space"), delivery.index("02_r_space"))
-        manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
-        self.assertEqual(manifest["primary_artemis_project"], "00_OPEN_FIRST/accepted_fit.fpj")
-        self.assertGreaterEqual(len(manifest["files"]), 10)
+        self.assertEqual(
+            {path.name for path in output.iterdir()},
+            {
+                "accepted_fit.dpj", "k1_data_fit.csv", "k2_data_fit.csv", "k3_data_fit.csv",
+                "R1_data_fit.csv", "R2_data_fit.csv", "R3_data_fit.csv",
+                "fit_parameters.tsv", "FIT_WORKFLOW.txt",
+            },
+        )
+        workflow = (output / "FIT_WORKFLOW.txt").read_text(encoding="utf-8")
+        self.assertIn("R1_data_fit.csv = Fourier transform of k^1*chi(k)", workflow)
+        self.assertIn("Loaded with the matching Demeter project loader.", workflow)
 
         verified = subprocess.run(
             [sys.executable, str(SCRIPT), "verify", "--package", str(output)],
             text=True, capture_output=True,
         )
         self.assertEqual(verified.returncode, 0, verified.stderr)
+
+    def test_audit_profile_remains_available(self) -> None:
+        output = self.base / "audit_delivery"
+        built = subprocess.run(self.audit_command(output), text=True, capture_output=True)
+        self.assertEqual(built.returncode, 0, built.stderr)
+        self.assertTrue((output / "manifest.json").is_file())
+        self.assertTrue((output / "00_OPEN_FIRST" / "accepted_fit.dpj").is_file())
 
     def test_refuses_negative_sigma2(self) -> None:
         text = self.parameters.read_text(encoding="utf-8").replace("\t0.004\t", "\t-0.004\t")

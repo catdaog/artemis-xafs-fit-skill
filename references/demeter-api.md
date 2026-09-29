@@ -60,15 +60,18 @@ Useful exports:
 
 ```perl
 $data->save('chi', $chi_file);
-$data->save('fit', $k3_file,  'k3');
-$data->save('fit', $rmag_file,'rmag');
-$data->save('fit', $rre_file, 'rre');
-$data->save('fit', $rim_file, 'rim');
+for my $kw (1, 2, 3) {
+    $data->save('fit', $k_file[$kw], "k$kw");
+    $data->po->kweight($kw);
+    $data->save('fit', $rmag_file[$kw], 'rmag');
+    $data->save('fit', $rre_file[$kw],  'rre');
+    $data->save('fit', $rim_file[$kw],  'rim');
+}
 ```
 
 For `save('chi', ...)`, Demeter writes k, χ(k), kχ(k), k²χ(k), k³χ(k), and the k window. Fit exports contain coordinate, data, fit, residual, optional background/running term, and window. Report the exact export mode.
 
-Export k1, k2, and k3 plus rmag, rre, and rim from the same accepted fit snapshot. Preserve the source exports, then use `scripts/build_xafs_delivery.py` to create normalized CSV files and verify coordinate grids, residual columns, parameter arithmetic, and hashes. Do not derive R-space real/imaginary values from magnitude or from a screenshot.
+Export k1, k2, and k3 from the same accepted fit snapshot. For each R1/R2/R3 file, first set the plot k-weight to 1/2/3 and then export rmag, rre, and rim on the same R grid. Use `scripts/build_xafs_delivery.py` to combine each weight's three components and verify grids, residual columns, and parameter arithmetic. Do not derive R-space real/imaginary values from magnitude or from a screenshot.
 
 ## Parameterization
 
@@ -83,8 +86,8 @@ The provided `demeter_first_shell_fit.pl` writes:
 
 - `chi_k.dat`;
 - `fit_k1.dat`, `fit_k2.dat`, `fit_k3.dat`;
-- `fit_rmag.dat`, `fit_rre.dat`, `fit_rim.dat`;
-- `fit_parameters.tsv` and `fit_parameters.md`;
-- `fit_statistics.tsv`, `summary.tsv`, `fit.log`, and `fit.dpj`.
+- `fit_r1_mag/re/im.dat`, `fit_r2_mag/re/im.dat`, and `fit_r3_mag/re/im.dat`;
+- one `fit_parameters.tsv` table;
+- `FIT_WORKFLOW.txt`, `fit_statistics.tsv`, `summary.tsv`, `fit.log`, and `fit.dpj`.
 
 The parameter table separates FEFF degeneracy, amplitude factor, fitted CN, `Reff`, `ΔR`, final `R`, uncertainties, fixed `S0²`, and fit status. Mark the initial automated result `unreviewed`; only change it to accepted after the fit-log audit and visual/residual checks pass.

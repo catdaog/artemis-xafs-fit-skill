@@ -19,8 +19,8 @@
 - FEFF 路径生成、`ipot`、简并度和散射路径检查；
 - Artemis/Demeter 分阶段 EXAFS 拟合；
 - CN、`ΔE0`、`ΔR`、`σ²`、独立点数和参数相关性审计；
-- 原始数据、k 空间、R 空间、拟合工程、日志和参数表的标准化交付；
-- SHA256、数值网格和参数算术关系的自动验证。
+- 默认九文件精简交付：DPJ、k1/k2/k3、R1/R2/R3、一个参数表和一个拟合流程 TXT；
+- 数值网格、残差和参数算术关系的自动验证；完整来源与审计包可按需启用。
 
 本技能的目标不是只得到一张“拟合得很好看”的图，而是建立一条可以追溯、复算和审查的证据链：
 
@@ -176,7 +176,7 @@ sample_xafs_input/
 | 7. 扩展模型 | 按 R 范围加入远壳层和多重散射 | 不遗漏主要路径，不因追求低 R-factor 盲目增加变量 | 候选模型和模型比较表 |
 | 8. 参数与稳健性审计 | 检查参数限制、相关性和窗口依赖 | `Nind/Nvar`、边界命中、误差、相关系数、k/R 窗口与 k-weight 扰动 | audit JSON、接受/拒绝模型记录 |
 | 9. 数值导出 | 从同一已接受拟合快照导出全部曲线 | k¹/k²/k³、R magnitude/real/imaginary 使用一致网格 | 原始 χ(k)、k 空间和 R 空间 CSV/DAT |
-| 10. 打包与验证 | 构建标准目录并复核哈希和算术关系 | 原始文件未覆盖、网格单调、残差和参数关系正确 | 完整交付目录、参数表、`manifest.json` |
+| 10. 打包与验证 | 构建默认九文件目录并复核网格、残差和参数关系 | DPJ 已载入检查，k/R 网格和 `R=Reff+ΔR` 正确 | DPJ、k1/2/3、R1/2/3、一个参数表、`FIT_WORKFLOW.txt` |
 
 详细流程见 [`references/workflow.md`](references/workflow.md)。
 
@@ -199,49 +199,36 @@ sample_xafs_input/
 
 ## 标准交付内容
 
-一次实际执行的拟合必须输出文件，而不是只有图片或文字总结：
-
-交付顺序固定为：**先给可由 Artemis 直接打开的最终拟合工程，再给 k 空间原始数据与拟合，随后给 R 空间原始数据与拟合**。最终工程在打包前必须用 Artemis 重新打开（或用匹配的 Demeter project loader 载入）并记录检查；扩展名和非零文件大小本身不能证明工程完整。参数、原始扫描、FEFF/CIF 和审计文件属于支持材料。
+一次实际执行的拟合必须输出数值文件，而不是只有图片或文字总结。默认只交付九个文件：
 
 ```text
 <sample>_xafs_delivery/
-├── DELIVERY.md
-├── manifest.json
-├── 00_OPEN_FIRST/
-│   └── <final-accepted-fit>.fpj|.dpj       Artemis 直接打开的最终拟合
-├── 01_k_space/
-│   ├── chi_k_source.dat                    原始处理导出
-│   ├── chi_k.csv                           k, χ, kχ, k²χ, k³χ, window
-│   ├── source_exports/                     Demeter 原始 k 空间拟合导出
-│   ├── kspace_fit_k1.csv                   data, fit, residual, window
-│   ├── kspace_fit_k2.csv
-│   └── kspace_fit_k3.csv
-├── 02_r_space/
-│   ├── source_exports/                     Demeter 原始 rmag/rre/rim 导出
-│   └── rspace_data_fit.csv                 magnitude/real/imaginary
-├── 03_parameters/
-│   ├── source_fit_parameters.tsv           未修改参数导出
-│   ├── fit_parameters.tsv                  规范化机器可读表
-│   ├── fit_parameters.md                   Markdown 参数表
-│   └── fit_statistics.tsv
-├── 04_raw_source/                          原始文件逐字节副本
-├── 05_models_feff/                         CIF、feff.inp、fit.log、支持模型
-└── 06_qa/                                  校准、审计、模型比较、来源记录
+├── <final-fit>.dpj
+├── k1_data_fit.csv
+├── k2_data_fit.csv
+├── k3_data_fit.csv
+├── R1_data_fit.csv
+├── R2_data_fit.csv
+├── R3_data_fit.csv
+├── fit_parameters.tsv
+└── FIT_WORKFLOW.txt
 ```
 
-`rspace_data_fit.csv` 同时保存：
+`k1/k2/k3` 文件分别保存 k¹/k²/k³ 加权的数据、拟合和残差。`R1/R2/R3` 不是幅值/实部/虚部的简称，而是同一最终拟合在 k 权重 1、2、3 下的 R 空间变换；每个 R 文件同时保存：
 
 - `data_mag`, `fit_mag`, `residual_mag`；
 - `data_real`, `fit_real`, `residual_real`；
 - `data_imag`, `fit_imag`, `residual_imag`。
 
-注意：Demeter 的 R-space magnitude residual 是复数残差的模：
+Demeter 的 R-space magnitude residual 是复数残差的模：
 
 ```text
 |χdata(R) - χfit(R)|
 ```
 
-它一般不等于 `|χdata(R)| - |χfit(R)|`。详细文件规范见 [`references/deliverables.md`](references/deliverables.md)。
+它一般不等于 `|χdata(R)| - |χfit(R)|`。`FIT_WORKFLOW.txt` 记录输入、校准和预处理依据、FEFF 路径、固定/拟合参数、k/R 窗口、模型选择、导出步骤以及 DPJ 的重新打开/载入检查，让最终结果可追溯。
+
+原始扫描、CIF、`feff.inp`、日志、哈希和 QA 文件仍需在工作目录中保留，但默认不重复交付；只有用户要求完整审计材料时才使用 `--profile audit`。详细规范见 [`references/deliverables.md`](references/deliverables.md)。
 
 ## 拟合参数表
 
@@ -291,7 +278,7 @@ git -C "$env:USERPROFILE\.codex\skills\artemis-xafs-fit-skill" pull --ff-only
 
 ```text
 使用 $artemis-xafs-fit-skill 校准我的金属箔，确定 S0²，运行第一壳层拟合，
-并输出原始数据、k 空间、R 空间、拟合工程、审计文件和参数表。
+并按默认九文件格式输出 DPJ、k1/k2/k3、R1/R2/R3、一个参数表和拟合流程 TXT。
 ```
 
 也可以让 Codex 根据 Athena、Artemis、FEFF、EXAFS、配位数拟合或 R 空间导出等请求自动选择本技能。
@@ -306,7 +293,7 @@ git -C "$env:USERPROFILE\.codex\skills\artemis-xafs-fit-skill" pull --ff-only
 | `run_demeter.ps1` | 在独立短路径环境中探测并运行 Windows Demeter |
 | `demeter_first_shell_fit.pl` | 固定 `S0²`、显式路径、可分组 `σ²`的第一壳层拟合 |
 | `audit_fit_log.py` | 审计负 `σ²`、极端位移、参数数目和高相关性 |
-| `build_xafs_delivery.py` | 构建并验证完整 XAFS 数值交付包 |
+| `build_xafs_delivery.py` | 默认构建并验证九文件精简交付；`--profile audit` 生成完整审计包 |
 
 探测本机 Demeter：
 
@@ -320,20 +307,19 @@ git -C "$env:USERPROFILE\.codex\skills\artemis-xafs-fit-skill" pull --ff-only
 python scripts/build_xafs_delivery.py build `
   --output sample_xafs_delivery `
   --sample "Sample name" `
-  --artemis-project accepted_final_fit.fpj `
-  --raw raw_scan_01.dat --raw raw_scan_02.dat `
-  --processed-chi chi_k.dat `
+  --artemis-project fit.dpj `
   --fit-k1 fit_k1.dat --fit-k2 fit_k2.dat --fit-k3 fit_k3.dat `
-  --fit-rmag fit_rmag.dat --fit-rre fit_rre.dat --fit-rim fit_rim.dat `
+  --fit-r1-mag fit_r1_mag.dat --fit-r1-re fit_r1_re.dat --fit-r1-im fit_r1_im.dat `
+  --fit-r2-mag fit_r2_mag.dat --fit-r2-re fit_r2_re.dat --fit-r2-im fit_r2_im.dat `
+  --fit-r3-mag fit_r3_mag.dat --fit-r3-re fit_r3_re.dat --fit-r3-im fit_r3_im.dat `
   --parameters fit_parameters.tsv `
-  --statistics fit_statistics.tsv `
-  --artifact fit.log --artifact feff.inp --artifact phase.cif `
-  --qa audit.json --qa calibration.json --qa model_comparison.csv
+  --workflow-source FIT_WORKFLOW.txt `
+  --project-check "已用匹配的 Demeter project loader 成功载入"
 
 python scripts/build_xafs_delivery.py verify --package sample_xafs_delivery
 ```
 
-打包器拒绝覆盖已有目标目录。重新拟合时请创建带版本号的新目录。
+打包器拒绝覆盖已有目标目录。重新拟合时请创建带版本号的新目录。完整原始数据、FEFF/CIF、日志、统计和 QA 材料可用 `--profile audit` 生成。
 
 ## 仓库结构
 
@@ -395,8 +381,8 @@ python <skill-creator>/scripts/quick_validate.py .
 - FEFF path generation and checks of absorber, `ipot`, degeneracy, and scattering sequence;
 - staged Artemis/Demeter EXAFS fitting;
 - auditing of CN, `ΔE0`, `ΔR`, `σ²`, independent points, and parameter correlations;
-- standardized delivery of raw data, k-space and R-space curves, projects, logs, and parameter tables;
-- automatic verification of hashes, numerical grids, residuals, and derived-parameter arithmetic.
+- a default nine-file delivery: DPJ, k1/k2/k3, R1/R2/R3, one parameter table, and one workflow TXT;
+- automatic verification of numerical grids, residuals, and derived-parameter arithmetic, with an optional extended audit package.
 
 The goal is not merely to produce an attractive fit plot. The skill builds a traceable, rerunnable, and auditable evidence chain:
 
@@ -552,7 +538,7 @@ If only one archive can be uploaded, prioritize: **raw sample scans + same-edge 
 | 7. Extend the model | Add higher shells and multiple scattering as required by the R range | no material missing paths; no parameter inflation solely to lower R-factor | candidate fits and model-comparison table |
 | 8. Parameter and robustness audit | Test limits, correlations, and window dependence | `Nind/Nvar`, boundary hits, errors, correlations, k/R and k-weight perturbations | audit JSON and accepted/rejected model record |
 | 9. Numerical export | Export every curve from the same accepted fit snapshot | consistent grids for k¹/k²/k³ and R magnitude/real/imaginary | raw χ(k), k-space, and R-space tables |
-| 10. Package and verify | Build the standard directory and verify hashes and arithmetic | no overwritten source, monotonic grids, valid residuals and parameter relations | complete delivery directory, tables, `manifest.json` |
+| 10. Package and verify | Build the default nine-file directory and verify grids, residuals, and arithmetic | DPJ load check, valid k/R grids, and `R=Reff+ΔR` | DPJ, k1/2/3, R1/2/3, one table, `FIT_WORKFLOW.txt` |
 
 See [`references/workflow.md`](references/workflow.md) for the detailed procedure.
 
@@ -575,43 +561,30 @@ Simultaneous k weights 1, 2, and 3 do not triple the independent information con
 
 ## Required delivery files
 
-Every executed fit must return files, not only plots or narrative:
-
-The delivery order is fixed: **first the final Artemis-openable project, then the original/data-and-fit k-space files, then the original/data-and-fit R-space files**. Reopen the final project in Artemis (or load it with the matching Demeter project loader) and record that check before packaging; extension and non-zero size alone do not prove project integrity. Parameters, raw scans, FEFF/CIF inputs, and QA records are supporting material.
+Every executed fit must return numerical files, not only plots or narrative. The default delivery contains only nine files:
 
 ```text
 <sample>_xafs_delivery/
-├── DELIVERY.md
-├── manifest.json
-├── 00_OPEN_FIRST/
-│   └── <final-accepted-fit>.fpj|.dpj       final fit; open directly in Artemis
-├── 01_k_space/
-│   ├── chi_k_source.dat                    unchanged processed export
-│   ├── chi_k.csv                           k, χ, kχ, k²χ, k³χ, window
-│   ├── source_exports/                     unchanged k-space fit exports
-│   ├── kspace_fit_k1.csv                   data, fit, residual, window
-│   ├── kspace_fit_k2.csv
-│   └── kspace_fit_k3.csv
-├── 02_r_space/
-│   ├── source_exports/                     unchanged rmag/rre/rim exports
-│   └── rspace_data_fit.csv                 magnitude/real/imaginary
-├── 03_parameters/
-│   ├── source_fit_parameters.tsv           unchanged parameter export
-│   ├── fit_parameters.tsv                  normalized machine-readable table
-│   ├── fit_parameters.md                   Markdown table
-│   └── fit_statistics.tsv
-├── 04_raw_source/                          byte-for-byte raw copies
-├── 05_models_feff/                         CIF, feff.inp, fit.log, supporting models
-└── 06_qa/                                  calibration, audit, model comparison, provenance
+├── <final-fit>.dpj
+├── k1_data_fit.csv
+├── k2_data_fit.csv
+├── k3_data_fit.csv
+├── R1_data_fit.csv
+├── R2_data_fit.csv
+├── R3_data_fit.csv
+├── fit_parameters.tsv
+└── FIT_WORKFLOW.txt
 ```
 
-`rspace_data_fit.csv` contains magnitude, real, and imaginary data, fit, and residual columns. Demeter's R-space magnitude residual is the magnitude of the complex residual,
+The k1/k2/k3 files contain k¹/k²/k³-weighted data, fit, and residual. R1/R2/R3 are not aliases for magnitude/real/imaginary; they are the R-space transforms at k weights 1, 2, and 3. Each R file contains magnitude, real, and imaginary data, fit, and residual columns. Demeter's R-space magnitude residual is the magnitude of the complex residual,
 
 ```text
 |χdata(R) - χfit(R)|
 ```
 
-and is generally not equal to `|χdata(R)| - |χfit(R)|`. See [`references/deliverables.md`](references/deliverables.md) for the exact file and column contract.
+and is generally not equal to `|χdata(R)| - |χfit(R)|`. `FIT_WORKFLOW.txt` records the inputs, calibration and preprocessing basis, FEFF paths, fixed/fitted parameters, k/R windows, model decision, exports, and the DPJ reopen/load check.
+
+Keep raw scans, CIF, `feff.inp`, logs, hashes, and QA records in the working directory, but do not duplicate them in the default delivery. Use `--profile audit` only when the user requests the extended provenance package. See [`references/deliverables.md`](references/deliverables.md) for the exact file and column contract.
 
 ## Fit-parameter table
 
@@ -659,7 +632,7 @@ Use the skill explicitly in Codex:
 
 ```text
 Use $artemis-xafs-fit-skill to calibrate my foil, determine S0², run a first-shell fit,
-and deliver the raw, k-space, R-space, project, audit, and parameter-table files.
+and deliver the default DPJ, k1/k2/k3, R1/R2/R3, one parameter table, and workflow TXT.
 ```
 
 Codex may also select the skill automatically for Athena, Artemis, FEFF, EXAFS, coordination-number fitting, and numerical R-space export requests.
@@ -674,7 +647,7 @@ Codex may also select the skill automatically for Athena, Artemis, FEFF, EXAFS, 
 | `run_demeter.ps1` | probe and run Windows Demeter in an isolated short-path runtime |
 | `demeter_first_shell_fit.pl` | run a fixed-`S0²`, explicit-path first-shell fit with grouped `σ²` |
 | `audit_fit_log.py` | audit negative `σ²`, extreme shifts, parameter counts, and high correlations |
-| `build_xafs_delivery.py` | build and verify the complete numerical XAFS delivery package |
+| `build_xafs_delivery.py` | build and verify the default nine-file delivery; use `--profile audit` for the extended package |
 
 Probe the local Demeter installation:
 
@@ -688,20 +661,19 @@ Build and verify a delivery package:
 python scripts/build_xafs_delivery.py build `
   --output sample_xafs_delivery `
   --sample "Sample name" `
-  --artemis-project accepted_final_fit.fpj `
-  --raw raw_scan_01.dat --raw raw_scan_02.dat `
-  --processed-chi chi_k.dat `
+  --artemis-project fit.dpj `
   --fit-k1 fit_k1.dat --fit-k2 fit_k2.dat --fit-k3 fit_k3.dat `
-  --fit-rmag fit_rmag.dat --fit-rre fit_rre.dat --fit-rim fit_rim.dat `
+  --fit-r1-mag fit_r1_mag.dat --fit-r1-re fit_r1_re.dat --fit-r1-im fit_r1_im.dat `
+  --fit-r2-mag fit_r2_mag.dat --fit-r2-re fit_r2_re.dat --fit-r2-im fit_r2_im.dat `
+  --fit-r3-mag fit_r3_mag.dat --fit-r3-re fit_r3_re.dat --fit-r3-im fit_r3_im.dat `
   --parameters fit_parameters.tsv `
-  --statistics fit_statistics.tsv `
-  --artifact fit.log --artifact feff.inp --artifact phase.cif `
-  --qa audit.json --qa calibration.json --qa model_comparison.csv
+  --workflow-source FIT_WORKFLOW.txt `
+  --project-check "Loaded successfully with the matching Demeter project loader"
 
 python scripts/build_xafs_delivery.py verify --package sample_xafs_delivery
 ```
 
-The builder refuses to overwrite an existing destination. Use a new versioned directory for every rerun.
+The builder refuses to overwrite an existing destination. Use a new versioned directory for every rerun. Add `--profile audit` when raw inputs, FEFF/CIF, logs, statistics, hashes, and QA files are explicitly requested.
 
 ## Repository layout
 

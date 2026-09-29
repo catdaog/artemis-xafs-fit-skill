@@ -1,6 +1,6 @@
 interface:
   display_name: "Artemis XAFS Fit Skill"
-  short_description: "Fit and export auditable Athena/Artemis XAFS data"
-  default_prompt: "Use $artemis-xafs-fit-skill to calibrate and fit my EXAFS data, then deliver the raw, k-space, R-space, project, audit, and parameter-table files."
+  short_description: "Fit XAFS and export compact Artemis result files"
+  default_prompt: "Use $artemis-xafs-fit-skill to calibrate and fit my EXAFS data, then deliver the DPJ, k1/k2/k3, R1/R2/R3, one parameter table, and workflow TXT."
 policy:
   allow_implicit_invocation: true

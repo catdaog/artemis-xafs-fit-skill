@@ -1,117 +1,95 @@
-# Required XAFS delivery package
+# XAFS delivery contract
 
-Use this reference whenever a standard or sample fit was run. The result must be a directory of numerical files, not only screenshots, plots, or prose.
+Use this reference whenever a standard or sample fit was run. Return numerical files, not only plots or prose.
 
-## Directory contract
+## Default: minimal nine-file package
 
-`scripts/build_xafs_delivery.py` creates and verifies this layout:
+The default package is flat and contains only:
 
 ```text
 <sample>_xafs_delivery/
-├── DELIVERY.md
-├── manifest.json
-├── 00_OPEN_FIRST/
-│   └── <final-accepted-fit>.fpj|.dpj       final fit; open directly in Artemis
-├── 01_k_space/
-│   ├── chi_k_source.dat                    original processed export
-│   ├── chi_k.csv                           k, chi, kchi, k2chi, k3chi, window
-│   ├── source_exports/                     unchanged Demeter exports
-│   ├── kspace_fit_k1.csv                   k, data, fit, residual, window
-│   ├── kspace_fit_k2.csv
-│   └── kspace_fit_k3.csv
-├── 02_r_space/
-│   ├── source_exports/                     unchanged rmag/rre/rim exports
-│   └── rspace_data_fit.csv                 magnitude/real/imaginary data, fit, residual
-├── 03_parameters/
-│   ├── source_fit_parameters.tsv           unchanged parameter export
-│   ├── fit_parameters.tsv
-│   ├── fit_parameters.md
-│   └── fit_statistics.tsv
-├── 04_raw_source/
-│   └── 001_<original-name>                 byte-for-byte source copy
-├── 05_models_feff/                         CIF, feff.inp, fit log, supporting models
-└── 06_qa/                                  calibration, audit, comparison, provenance
+├── <final-fit>.dpj
+├── k1_data_fit.csv
+├── k2_data_fit.csv
+├── k3_data_fit.csv
+├── R1_data_fit.csv
+├── R2_data_fit.csv
+├── R3_data_fit.csv
+├── fit_parameters.tsv
+└── FIT_WORKFLOW.txt
 ```
 
-The accepted `.fpj` or `.dpj` is the primary deliverable and must be listed and linked first in `DELIVERY.md` and in the final response. Before packaging, reopen it in Artemis or load it with the matching Demeter project loader and record that application-level check in the QA records. The builder verifies suffix, non-zero size, copy hash, and location, but those checks alone do not prove project integrity. The k-space and R-space numerical data/fit files come next. Supporting parameters, raw source, FEFF/CIF/log files, and QA records follow afterward.
+Do not add plots, duplicate Markdown/CSV parameter tables, raw scans, CIF/FEFF files, logs, manifests, or QA folders to the default package. Preserve those source and audit materials in the working directory and include them only when the user requests the `audit` profile.
 
-The primary Artemis project, k-space tables, R-space table, parameter tables, and raw input are mandatory for a completed fit. Other files that do not apply may be omitted only with an explanation in `DELIVERY.md`. Do not create placeholder fit files for an unexecuted fit. If an openable final project cannot be saved, report the run as incomplete or blocked rather than presenting a plot as a completed delivery.
+The DPJ is the primary deliverable. Reopen it in Artemis or load it with the matching Demeter project loader before packaging, and write the actual check in `FIT_WORKFLOW.txt`. Extension and non-zero size alone do not prove project integrity.
 
-## Numerical column requirements
+## k1, k2 and k3 files
 
-### Processed k-space data
-
-`chi_k.csv` must contain every exported k point in the original order. Required columns are:
-
-`k_A^-1, chi, k1_chi, k2_chi, k3_chi, window`
-
-Demeter `save('chi', ...)` already exports these six columns. Do not resample, smooth, or truncate during packaging.
-
-### k-space fit exports
-
-Create one file for each requested k weight. Required leading columns are:
+Each file contains every exported k point, in order, with leading columns:
 
 `k_A^-1, data, fit, residual`
 
-Include the transform window and any Demeter background/running-term columns when present. Preserve every k coordinate and verify `residual ≈ data - fit` within export precision.
+Retain the transform window and any additional Demeter columns. Verify `residual ~= data - fit` within export precision. The three files must come from the same accepted fit and use the same k grid.
 
-### R-space fit export
+## R1, R2 and R3 files
 
-Combine Demeter `rmag`, `rre`, and `rim` exports only after verifying identical R grids. Required columns are:
+`R1`, `R2`, and `R3` are **not** aliases for magnitude, real, and imaginary parts. They mean the Fourier transforms of `k^1 chi(k)`, `k^2 chi(k)`, and `k^3 chi(k)`, respectively.
 
-`R_A, data_mag, fit_mag, residual_mag, data_real, fit_real, residual_real, data_imag, fit_imag, residual_imag`
+Before each R-space export, set the Demeter plot k-weight to the corresponding value. Each combined file contains:
 
-Retain the R-space window and any additional source columns. Never derive real or imaginary components from magnitude alone.
+`R_A, data_mag, fit_mag, residual_mag, data_real, fit_real, residual_real, data_imag, fit_imag, residual_imag, window`
 
-For the real and imaginary exports, verify `residual ≈ data - fit`. Do **not** apply that arithmetic to the magnitude columns: Demeter's `rmag` residual is the magnitude of the complex residual, `|χdata(R) - χfit(R)|`, which is generally not equal to `|χdata(R)| - |χfit(R)|`.
+Combine magnitude, real, and imaginary exports only after verifying identical R grids. For real and imaginary columns, verify `residual ~= data - fit`. Do not apply that arithmetic to magnitude: Demeter's magnitude residual is `|chi_data(R) - chi_fit(R)|`, which is generally not `|chi_data(R)| - |chi_fit(R)|`.
 
-## Parameter-table contract
+## One parameter table
 
-Provide both machine-readable TSV/CSV and Markdown. Each fitted path row should contain, when applicable:
+Deliver only `fit_parameters.tsv` by default. Each fitted path row should contain, when applicable:
 
-- sample and fit/model identifier;
-- FEFF path index and path/scatterer label;
-- theoretical FEFF degeneracy;
-- fitted amplitude factor and `CNfit = degeneracy × amplitude`;
-- `Reff`, `ΔR`, `ΔR` uncertainty, and `Rfit = Reff + ΔR`;
-- `σ²` and uncertainty in Å²;
-- `ΔE0` and uncertainty in eV;
-- `S0²` value and whether fixed or fitted;
-- R-factor and accepted/rejected/unreviewed status;
-- notes describing shared/fixed/constrained parameters.
+- sample, fit/model identifier, FEFF path index, path and scatterer;
+- theoretical degeneracy, fitted amplitude factor, and `CNfit = degeneracy * amplitude`;
+- `Reff`, `DeltaR`, its uncertainty, and `Rfit = Reff + DeltaR`;
+- `sigma2` and uncertainty in A^2;
+- `DeltaE0` and uncertainty in eV;
+- `S0^2` and whether it was fixed or fitted;
+- R-factor, accepted/rejected/unreviewed status, and constraint notes.
 
-Keep theoretical, fitted, derived, and fixed quantities in separate columns. If a quantity was not fitted, write `fixed`, `not_applicable`, or leave it blank with a note; do not invent an uncertainty.
+Keep theoretical, fitted, derived, and fixed quantities in separate columns. Do not invent an uncertainty for a fixed quantity.
 
-## Manifest and invariance checks
+## FIT_WORKFLOW.txt
 
-The package manifest records SHA256, byte size, numeric row count where applicable, and file role. Verification must confirm:
+This text file must let another researcher reconstruct how the delivered result was produced. Record:
 
-- raw copies match their recorded source hashes;
-- exactly one non-empty `.fpj` or `.dpj` is present in `00_OPEN_FIRST/` and matches the manifest's primary-project entry;
-- the processed and fit tables are numeric and have strictly increasing coordinates;
-- k¹/k²/k³ files retain their respective source grids;
-- `rmag`, `rre`, and `rim` share the same R grid before combination;
-- parameter and statistics tables are present;
-- mandatory model/project/log/audit files are present when the fit workflow produced them;
-- no input file was overwritten.
+1. input spectrum/project and FEFF structural source;
+2. energy calibration and Athena preprocessing choices when applicable;
+3. fixed `S0^2`, selected paths, parameter sharing/fixing, and constraints;
+4. k/R ranges, windows, simultaneous fit weights, `Nind`, and `Nvar`;
+5. model-comparison/acceptance decision and any rejected alternatives;
+6. exact k1/k2/k3 and R1/R2/R3 export procedure;
+7. DPJ reopen/load check and the tool/version used;
+8. whether any source file was modified.
 
-## Build command
+The driver writes an executed-fit record. The delivery builder adds the export definitions and project-check statement. Never state that Artemis reopened a project unless that check actually occurred.
+
+## Optional audit profile
+
+Use `--profile audit` only when the user requests raw inputs, processed chi(k), source exports, fit statistics, CIF/FEFF/log files, QA records, hashes, or the previous extended directory layout. The audit profile does not change the fit; it only preserves more provenance.
+
+## Default build command
 
 ```powershell
 python scripts/build_xafs_delivery.py build `
   --output sample_xafs_delivery `
   --sample "Sample name" `
-  --artemis-project accepted_final_fit.fpj `
-  --raw raw_scan_01.dat --raw raw_scan_02.dat `
-  --processed-chi chi_k.dat `
+  --artemis-project fit.dpj `
   --fit-k1 fit_k1.dat --fit-k2 fit_k2.dat --fit-k3 fit_k3.dat `
-  --fit-rmag fit_rmag.dat --fit-rre fit_rre.dat --fit-rim fit_rim.dat `
+  --fit-r1-mag fit_r1_mag.dat --fit-r1-re fit_r1_re.dat --fit-r1-im fit_r1_im.dat `
+  --fit-r2-mag fit_r2_mag.dat --fit-r2-re fit_r2_re.dat --fit-r2-im fit_r2_im.dat `
+  --fit-r3-mag fit_r3_mag.dat --fit-r3-re fit_r3_re.dat --fit-r3-im fit_r3_im.dat `
   --parameters fit_parameters.tsv `
-  --statistics fit_statistics.tsv `
-  --artifact fit.log --artifact feff.inp --artifact phase.cif `
-  --qa audit.json --qa calibration.json --qa model_comparison.csv
+  --workflow-source FIT_WORKFLOW.txt `
+  --project-check "Loaded successfully with Demeter 0.9.26 project loader"
 
 python scripts/build_xafs_delivery.py verify --package sample_xafs_delivery
 ```
 
-The builder normalizes the supplied TSV and generates the Markdown parameter table automatically. It refuses to overwrite an existing destination; create a new versioned directory for a rerun.
+The builder refuses to overwrite an existing destination. Use a new versioned directory for each rerun.

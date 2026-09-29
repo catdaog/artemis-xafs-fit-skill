@@ -70,16 +70,16 @@ Read `parameter-constraints.md` before accepting a fit. Compute `Nind`, count ev
 
 ## 9. Export the numerical fit state
 
-The accepted fit snapshot must export all of the following before any reporting table is prepared:
+The accepted fit snapshot must retain all of the following in the working directory before the default delivery is prepared:
 
 - untouched raw scans;
 - processed unweighted `χ(k)` using Demeter `save('chi', ...)`;
 - `fit_k1`, `fit_k2`, and `fit_k3` files containing data, fit, residual, and window;
-- `fit_rmag`, `fit_rre`, and `fit_rim` from the same fit snapshot and R grid;
+- magnitude, real, and imaginary R-space exports at plot k weights 1, 2, and 3 from the same fit snapshot;
 - path-level parameter and uncertainty table;
 - fit statistics, log, DPJ/FPJ, CIF, FEFF input, calibration record, and model comparison.
 
-Do not reconstruct real or imaginary R-space curves from magnitude. Do not copy values manually from a plot when Demeter can export them numerically. The provided first-shell driver writes the core Demeter exports and standardized parameter tables.
+Do not reconstruct real or imaginary R-space curves from magnitude. Do not call magnitude/real/imaginary “R1/R2/R3”; those names mean R transforms at k weights 1/2/3. Do not copy values manually from a plot when Demeter can export them numerically. The provided first-shell driver writes the core Demeter exports, one parameter table, and an executed-fit workflow record.
 
 ## 10. Audit and deliver
 
@@ -92,4 +92,4 @@ Run `scripts/audit_fit_log.py` and inspect the plots. Reject or clearly label re
 - `Nvar >= Nind` or nearly saturated degrees of freedom;
 - unstable values/errors, unused GDS variables, missing shell paths, or wrong degeneracies.
 
-Run `scripts/build_xafs_delivery.py build` with the raw files and all exports, then run `scripts/build_xafs_delivery.py verify`. Deliver the resulting directory described in `deliverables.md`: calibrated data/project, foil `S0²` fit, sample DPJ/FPJ, CIF, FEFF input, fit log, numerical k- and R-space curves, parameter/path table, model comparison, calibration record, hashes, and source citations. State `R = Reff + ΔR` explicitly.
+Reopen the final DPJ in Artemis or load it with the matching Demeter project loader and record the check. Run `scripts/build_xafs_delivery.py build` in its default minimal profile, then run `verify`. Deliver only the nine files described in `deliverables.md`: DPJ, k1/k2/k3, R1/R2/R3, one parameter table, and `FIT_WORKFLOW.txt`. Keep raw scans, CIF/FEFF input, logs, calibration, rejected models, hashes, and citations in the working record; include them only for a requested `--profile audit`. State `R = Reff + ΔR` explicitly.

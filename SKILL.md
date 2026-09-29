@@ -1,6 +1,6 @@
 ---
 name: artemis-xafs-fit-skill
-description: Calibrate XAFS standards, determine S0², build verified FEFF paths, run and audit staged Athena/Artemis EXAFS fits, and deliver reproducible raw, k-space, R-space, project, log, and parameter-table files. Use for energy correction, foil or compound standards, CIF/FEFF setup, coordination-number fits, numerical fit exports, or reproducible multi-element XAFS workflows; not for XANES linear-combination fitting alone.
+description: Calibrate XAFS standards, determine S0², build verified FEFF paths, run and audit staged Athena/Artemis EXAFS fits, and deliver a compact DPJ plus k1/k2/k3, R1/R2/R3, parameter-table, and workflow record. Use for energy correction, foil or compound standards, CIF/FEFF setup, coordination-number fits, numerical fit exports, or reproducible multi-element XAFS workflows; not for XANES linear-combination fitting alone.
 ---
 
 # Artemis XAFS Fit Skill
@@ -31,7 +31,7 @@ Build a reproducible chain from raw/reference data to a checked Artemis project.
 7. Prefer the smallest identifiable parameterization. Reject negative `σ²`, unreasonable `|ΔR|`, extreme `ΔE0`, boundary hits, `Nvar >= Nind`, correlations above 0.95, or an inconsistent path/`ipot` mapping even if the R-factor is low.
 8. Report distances as `R = Reff + ΔR`, not `Reff` alone. Report k/R windows, weights, windows, fixed parameters, path degeneracies, uncertainties, correlations, `Nind`, `Nvar`, reduced χ², and R-factor.
 9. For transmission samples, calculate absorber mass from composition, edge, illuminated area, and target edge step. Do not reuse a fixed sample:BN ratio across materials. Treat total catalyst mass, absorber mass fraction, diluent mass, total optical thickness, and edge step as different quantities. A practical starting target is an edge step near 1, total optical thickness around 2–3, and edge step below about 1.5; verify with the beamline and measurement geometry.
-10. Do not return plots or prose alone after fitting. The first and primary deliverable must be the final accepted `.fpj` or `.dpj` that Artemis can open directly. Reopen it in Artemis or load it with the matching Demeter project loader before delivery, and record the check; extension and non-zero file size alone do not prove project integrity. Next provide the processed `χ(k)` and k-weighted data/fit/residual tables, followed by the R-space magnitude/real/imaginary data/fit/residual table. Preserve untouched raw inputs, parameter tables, log, structural inputs, audit, and hashes as supporting files.
+10. Do not return plots or prose alone after fitting. The default delivery is exactly one validated DPJ, k1/k2/k3 data-fit tables, R1/R2/R3 data-fit tables, one TSV parameter table, and one `FIT_WORKFLOW.txt`. Here R1/R2/R3 mean Fourier transforms at k weights 1/2/3; each file includes magnitude, real, and imaginary components. Reopen the DPJ in Artemis or load it with the matching Demeter project loader and record the actual check. Keep raw scans, logs, structures, audits, and hashes in the working directory; add them to an `audit` delivery only when requested.
 11. Never label simulated, reconstructed, example, or unexecuted output as fitted data. If Demeter/FEFF cannot run or required inputs are absent, return a missing-input or blocked-run record instead of fabricating numerical fit files.
 12. To support a specific path, compare fits without and with that path and check residuals, parameter stability, correlations, and chemical plausibility. A peak label, wavelet maximum, or lower R-factor alone does not prove atom identity; describe long-range paths such as La···C as scattering correlations unless bonding is independently established.
 
@@ -43,19 +43,12 @@ Build a reproducible chain from raw/reference data to a checked Artemis project.
 - `scripts/demeter_first_shell_fit.pl`: reproducible low-parameter first-shell fit with fixed `S0²`, explicit FEFF path indices, and configurable `σ²` grouping.
 - `scripts/audit_fit_log.py`: machine-check common Artemis/Demeter failure modes.
 - `scripts/suggest_xafs_settings.py`: report absorber/edge cautions, likely elemental-foil structure/CN, and Teo-Lee k-weight suggestions from the actual scatterers.
-- `scripts/build_xafs_delivery.py`: validate and assemble the primary openable Artemis project first, k-space and R-space numerical data/fit exports next, then untouched raw files, parameter tables, models, logs, audit files, and a SHA256 manifest.
+- `scripts/build_xafs_delivery.py`: by default validate and assemble the flat nine-file delivery; use `--profile audit` only when extended provenance files are requested.
 
 Use the helpers as building blocks, not as permission to select a phase, derivative peak, or FEFF paths without scientific inspection. If automatic and visual checks disagree, pause before changing calibration or the structural model.
 
 ## Completion contract
 
-When a fit was actually run, completion requires a validated delivery directory following [references/deliverables.md](references/deliverables.md). At minimum it contains:
+When a fit was actually run, completion requires the validated flat directory defined in [references/deliverables.md](references/deliverables.md): one `<final-fit>.dpj`, `k1_data_fit.csv` through `k3_data_fit.csv`, `R1_data_fit.csv` through `R3_data_fit.csv`, one `fit_parameters.tsv`, and one `FIT_WORKFLOW.txt`. Do not include duplicate parameter formats or extra folders by default.
 
-- `00_OPEN_FIRST/<final-fit>.fpj|.dpj`: exactly one non-empty final accepted project that opens directly in Artemis; this file must be linked first in the final response;
-- `01_k_space/`: processed unweighted `χ(k)` plus k¹/k²/k³ data, fit, residual, and window columns, linked after the project;
-- `02_r_space/`: unchanged magnitude/real/imaginary source exports and one combined R-space data/fit/residual table, linked after k-space;
-- CSV/TSV and Markdown parameter tables that distinguish theoretical degeneracy, amplitude factor, fitted CN, fixed values, uncertainties, `Reff`, `ΔR`, and `R = Reff + ΔR`;
-- byte-for-byte copies of all user raw inputs;
-- fit log, CIF, `feff.inp`, calibration record, audit JSON, model comparison, and SHA256 manifest when applicable.
-
-Reopen the primary project in Artemis (or load it with the matching Demeter project loader), record that application-level check, run `scripts/build_xafs_delivery.py` with `--artemis-project`, then run its `verify` mode on the result. The builder verifies suffix, non-zero size, copy hash, and package position; it does not replace the application-level reopen test. Preserve the original files and explicitly state whether any source file was modified. If the primary `.fpj`/`.dpj` is absent or cannot be opened, do not call the delivery complete. A fit is not complete merely because an Artemis plot or low R-factor exists.
+`FIT_WORKFLOW.txt` must record inputs, calibration/preprocessing basis, structure/path model, fixed and fitted parameters, k/R windows, fit weights, constraints, model decision, export steps, DPJ integrity check, and source-file modification status. Reopen/load the project, run `scripts/build_xafs_delivery.py` in its default minimal profile, then run `verify`. Preserve all source and audit files outside the default package. If the DPJ is absent or cannot be opened, do not call the delivery complete. A fit is not complete merely because an Artemis plot or low R-factor exists.
