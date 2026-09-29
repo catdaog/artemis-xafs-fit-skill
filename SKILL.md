@@ -9,6 +9,7 @@ Build a reproducible chain from raw/reference data to a checked Artemis project.
 
 ## Route the task
 
+- Before fitting, read [references/intake-and-fit-questionnaire.md](references/intake-and-fit-questionnaire.md) and confirm only the missing high-impact items. For unanswered noncritical items, apply and record its conservative defaults.
 - For the complete foil → S0² → sample workflow, read [references/workflow.md](references/workflow.md).
 - For absorber-edge choice, elemental-standard structures, coordination, and k-weight selection across elements, read [references/element-guidance.md](references/element-guidance.md).
 - Before interpreting or reporting a fit, read [references/basic-principles.md](references/basic-principles.md) for the EXAFS equation, parameter correlations, Fourier-transform meaning, independent-point limit, and calibration-versus-`Delta E0` distinction.
@@ -20,6 +21,7 @@ Build a reproducible chain from raw/reference data to a checked Artemis project.
 
 ## Required scientific invariants
 
+0. First confirm the experimental purpose, absorber/edge, sample/reference mapping, calibration basis, structural model, and which parameters are fixed or fitted. Do not repeat information already present in the files or conversation, and do not ask the user to supply a numerical `S0²`; derive it from the same-edge standard.
 1. Calibrate the simultaneously measured foil or accepted compound standard before fitting the standard or sample. Inspect `dμ/dE`; do not equate “highest derivative peak” with the correct feature for every edge. Use the beamline's stated calibration convention and record it. For Mo K-edge foil, use the first clear lower-energy inflection feature and set it to 20000 eV; the stronger second peak is not the calibration point.
 2. Propagate one measured energy shift only to spectra collected under the same beamline/monochromator calibration. Do not copy a shift across unrelated runs merely because the element is the same.
 3. Determine `S0²` using a standard measured at the same absorber edge, with known coordination and a physically defensible FEFF model. Fix the standard's crystallographic degeneracy while fitting `S0²`, `ΔE0`, `ΔR`, and `σ²` with a low-parameter model. Do not transfer `S0²` between unrelated absorber elements or edges without validation.
@@ -31,6 +33,7 @@ Build a reproducible chain from raw/reference data to a checked Artemis project.
 9. For transmission samples, calculate absorber mass from composition, edge, illuminated area, and target edge step. Do not reuse a fixed sample:BN ratio across materials. Treat total catalyst mass, absorber mass fraction, diluent mass, total optical thickness, and edge step as different quantities. A practical starting target is an edge step near 1, total optical thickness around 2–3, and edge step below about 1.5; verify with the beamline and measurement geometry.
 10. Do not return plots or prose alone after fitting. The first and primary deliverable must be the final accepted `.fpj` or `.dpj` that Artemis can open directly. Reopen it in Artemis or load it with the matching Demeter project loader before delivery, and record the check; extension and non-zero file size alone do not prove project integrity. Next provide the processed `χ(k)` and k-weighted data/fit/residual tables, followed by the R-space magnitude/real/imaginary data/fit/residual table. Preserve untouched raw inputs, parameter tables, log, structural inputs, audit, and hashes as supporting files.
 11. Never label simulated, reconstructed, example, or unexecuted output as fitted data. If Demeter/FEFF cannot run or required inputs are absent, return a missing-input or blocked-run record instead of fabricating numerical fit files.
+12. To support a specific path, compare fits without and with that path and check residuals, parameter stability, correlations, and chemical plausibility. A peak label, wavelet maximum, or lower R-factor alone does not prove atom identity; describe long-range paths such as La···C as scattering correlations unless bonding is independently established.
 
 ## Reusable helpers
 
