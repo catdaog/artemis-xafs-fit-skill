@@ -1,5 +1,7 @@
 # XAFS delivery contract
 
+Schema v3 update: append `cn_status`, `cn_error`, `s02_error` to parameter tables. Fixed CN uses `cn_status=fixed` with blank cn_fit/cn_error and amplitude_factor=1; fitted CN requires cn_fit and cn_error. Only reviewed `fit_status=accepted` rows may be packaged. Final projects must be DPJ fit serializations; convert FPJ to DPJ in Demeter first. Build/verify actually reload the DPJ and compare numerical exports/parameters. `--project-check` is a deprecated comment and cannot attest success. See [structure-and-pipeline.md](structure-and-pipeline.md) for the new runner.
+
 Use this reference whenever a standard or sample fit was run. Return numerical files, not only plots or prose.
 
 ## Default: minimal nine-file package

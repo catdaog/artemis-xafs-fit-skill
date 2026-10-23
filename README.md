@@ -1,5 +1,7 @@
 # Artemis XAFS Fit Skill
 
+2026-10 upgrade: fail-closed log audit; explicit fixed/fitted CN; actual DPJ reload/export verification; COD formula search; provenance-preserving CIF generation, supercells, substitutions and vacancies; K-edge CIF-to-FEFF clusters; standard-derived S0² to batch sample fitting. Install `requirements.txt` for CIF tools. See [structure and pipeline guide](references/structure-and-pipeline.md) and [Mo example configuration](examples/pipeline.template.json). Constructed structures are unrelaxed candidates; successful execution still requires scientific review.
+
 [![test](https://github.com/catdaog/artemis-xafs-fit-skill/actions/workflows/test.yml/badge.svg)](https://github.com/catdaog/artemis-xafs-fit-skill/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 

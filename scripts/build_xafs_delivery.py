@@ -13,15 +13,17 @@ from pathlib import Path
 import re
 import shutil
 import sys
+from check_project import check as reload_check, structural_check
 from typing import Iterable
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 PARAMETER_COLUMNS = [
     "sample", "path_index", "path", "scatterer", "degeneracy_theory",
     "amplitude_factor", "cn_fit", "reff_A", "delr_A", "delr_error_A",
     "r_fit_A", "sigma2_A2", "sigma2_error_A2", "e0_eV", "e0_error_eV",
     "s02", "s02_status", "r_factor", "fit_status", "notes",
+    "cn_status", "cn_error", "s02_error",
 ]
 MANDATORY_FILES = [
     "DELIVERY.md",
@@ -63,6 +65,8 @@ def numeric_rows(path: Path, min_columns: int) -> list[list[float]]:
         except ValueError:
             continue
         if len(values) >= min_columns:
+            if not all(math.isfinite(v) for v in values):
+                raise ValueError(f"{path} contains non-finite numbers")
             rows.append(values)
     if len(rows) < 3:
         raise ValueError(f"{path} has fewer than 3 numeric rows with {min_columns} columns")
@@ -136,6 +140,7 @@ def validate_artemis_project(path: Path) -> None:
         raise ValueError("primary Artemis project must be an .fpj or .dpj file")
     if path.stat().st_size == 0:
         raise ValueError("primary Artemis project is empty")
+    structural_check(path)
 
 
 def read_delimited(path: Path) -> tuple[list[str], list[dict[str, str]]]:
@@ -178,11 +183,39 @@ def normalize_parameters(source: Path, tsv_out: Path, md_out: Path | None = None
 
 
 def parameter_invariants(path: Path) -> None:
-    _, rows = read_delimited(path)
+    header, rows = read_delimited(path)
+    if not rows or any(c not in header for c in PARAMETER_COLUMNS):
+        raise ValueError("empty or incomplete parameter table; CN status/error are required")
     for line_no, row in enumerate(rows, 2):
         def number(name: str) -> float | None:
             value = row.get(name, "").strip()
-            return float(value) if value else None
+            parsed = float(value) if value else None
+            if parsed is not None and not math.isfinite(parsed):
+                raise ValueError(f"parameter row {line_no}: non-finite {name}")
+            return parsed
+
+        if row.get("fit_status") != "accepted":
+            raise ValueError(f"parameter row {line_no}: fit_status must be accepted after review")
+        for field in ("degeneracy_theory", "amplitude_factor", "reff_A", "delr_A", "r_fit_A", "sigma2_A2", "e0_eV", "s02", "r_factor"):
+            if number(field) is None:
+                raise ValueError(f"parameter row {line_no}: missing {field}")
+        if row['cn_status'] not in ('fixed', 'fitted'):
+            raise ValueError('cn_status must be fixed or fitted')
+        if row['s02_status'] not in ('fixed','fitted'):
+            raise ValueError('s02_status must be fixed or fitted')
+        for field in ('cn_error','s02_error','delr_error_A','sigma2_error_A2','e0_error_eV'):
+            value=number(field)
+            if value is not None and value<0:
+                raise ValueError('negative uncertainty: '+field)
+        if row['s02_status']=='fitted' and number('s02_error') is None:
+            raise ValueError('fitted S02 requires uncertainty')
+        if row['cn_status'] == 'fixed':
+            if number('cn_fit') is not None or number('cn_error') is not None or number('amplitude_factor') != 1:
+                raise ValueError('fixed CN must leave cn_fit/cn_error blank and amplitude_factor=1')
+        elif number('cn_fit') is None or number('cn_error') is None or number('cn_error') < 0:
+            raise ValueError('fitted CN requires finite value and nonnegative uncertainty')
+        if number('amplitude_factor') <= 0 or number('s02') <= 0 or number('degeneracy_theory') <= 0:
+            raise ValueError('nonpositive amplitude, S02 or degeneracy')
 
         reff, delr, rfit = number("reff_A"), number("delr_A"), number("r_fit_A")
         if None not in (reff, delr, rfit) and not math.isclose(
@@ -325,8 +358,9 @@ def build_minimal(args: argparse.Namespace) -> int:
     validate_artemis_project(args.artemis_project)
     if args.artemis_project.suffix.lower() != ".dpj":
         raise ValueError("minimal profile requires a final .dpj project")
-    if not args.project_check.strip():
-        raise ValueError("--project-check must record how the final DPJ was reopened or loaded")
+    parameter_invariants(args.parameters)
+    report = reload_check(args.artemis_project, parameters=args.parameters)
+    args.project_check = json.dumps(report, ensure_ascii=False)
     output.mkdir(parents=True)
     copy_unique(args.artemis_project, output / args.artemis_project.name)
 
@@ -364,6 +398,10 @@ def build_audit(args: argparse.Namespace) -> int:
     ], "audit")
     if not args.raw:
         raise ValueError("audit profile requires at least one --raw input")
+    parameter_invariants(args.parameters)
+    exports = {f'k{w}': getattr(args, f'fit_k{w}') for w in (1, 2, 3)}
+    exports.update({'r2_mag': args.fit_rmag, 'r2_re': args.fit_rre, 'r2_im': args.fit_rim})
+    args.project_check = json.dumps(reload_check(args.artemis_project, exports, args.parameters))
     output = args.output.resolve()
     if output.exists():
         raise FileExistsError(f"refusing to overwrite existing destination: {output}")
@@ -547,6 +585,10 @@ def verify_minimal(package: Path) -> dict[str, object]:
             pseudo = [[row[0], row[indices[0]], row[indices[1]], row[indices[2]]] for row in rows]
             check_residual(pseudo, f"R{weight} {component}")
     parameter_invariants(package / "fit_parameters.tsv")
+    exports = {f'k{w}': package / f'k{w}_data_fit.csv' for w in (1, 2, 3)}
+    exports.update({f'r{w}_{c}': package / f'R{w}_data_fit.csv'
+                    for w in (1, 2, 3) for c in ('mag', 're', 'im')})
+    reload_check(projects[0], exports, package / 'fit_parameters.tsv')
     workflow = (package / "FIT_WORKFLOW.txt").read_text(encoding="utf-8")
     for token in ("k1", "k2", "k3", "R1_data_fit.csv", "R2_data_fit.csv", "R3_data_fit.csv"):
         if token not in workflow:
@@ -611,6 +653,9 @@ def verify_package(package: Path) -> dict[str, object]:
         pseudo = [[row[0], row[indices[0]], row[indices[1]], row[indices[2]]] for row in r_rows]
         check_residual(pseudo, f"R-space {component}")
     parameter_invariants(package / "03_parameters" / "fit_parameters.tsv")
+    exports = {f'k{w}': package / '01_k_space' / f'kspace_fit_k{w}.csv' for w in (1,2,3)}
+    exports.update({f'r2_{c}': package / '02_r_space' / 'rspace_data_fit.csv' for c in ('mag','re','im')})
+    reload_check(projects[0], exports, package / '03_parameters' / 'fit_parameters.tsv')
     return {"status": "pass", "package": str(package), "files": len(listed)}
 
 
@@ -647,7 +692,7 @@ def parser() -> argparse.ArgumentParser:
     build_p.add_argument("--workflow-source", type=Path)
     build_p.add_argument(
         "--project-check", default="",
-        help="record of reopening the final DPJ in Artemis or loading it with Demeter",
+        help="deprecated comment; actual Demeter reload is always executed",
     )
     build_p.add_argument("--notes")
     verify_p = sub.add_parser("verify", help="verify hashes and numerical invariants")
@@ -667,7 +712,7 @@ def main() -> int:
         )
         print(json.dumps(result, ensure_ascii=False))
         return 0
-    except (OSError, ValueError, json.JSONDecodeError) as exc:
+    except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
 

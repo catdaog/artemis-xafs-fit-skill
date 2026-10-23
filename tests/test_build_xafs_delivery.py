@@ -7,10 +7,22 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import zipfile
+import io
+from contextlib import redirect_stdout, redirect_stderr
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "build_xafs_delivery.py"
+sys.path.insert(0,str(ROOT/'scripts'))
+import build_xafs_delivery as builder
+
+def invoke(command, **kwargs):
+    out,err=io.StringIO(),io.StringIO()
+    with patch.object(sys,'argv',command[1:]), patch.object(builder,'reload_check',return_value={'validation':'mock runtime boundary'}), redirect_stdout(out), redirect_stderr(err):
+        code=builder.main()
+    return subprocess.CompletedProcess(command,code,out.getvalue(),err.getvalue())
 
 
 class DeliveryBuilderTest(unittest.TestCase):
@@ -68,7 +80,7 @@ class DeliveryBuilderTest(unittest.TestCase):
             "sample", "path_index", "path", "scatterer", "degeneracy_theory",
             "amplitude_factor", "cn_fit", "reff_A", "delr_A", "delr_error_A",
             "r_fit_A", "sigma2_A2", "sigma2_error_A2", "e0_eV", "e0_error_eV",
-            "s02", "s02_status", "r_factor", "fit_status", "notes",
+            "s02", "s02_status", "r_factor", "fit_status", "notes", "cn_status", "cn_error", "s02_error",
         ]
         row = {
             "sample": "demo", "path_index": "0", "path": "M-O", "scatterer": "O",
@@ -77,7 +89,7 @@ class DeliveryBuilderTest(unittest.TestCase):
             "r_fit_A": "2.02", "sigma2_A2": "0.004", "sigma2_error_A2": "0.001",
             "e0_eV": "2", "e0_error_eV": "0.5", "s02": "0.88",
             "s02_status": "fixed", "r_factor": "0.01", "fit_status": "accepted",
-            "notes": "synthetic unit-test row",
+            "notes": "synthetic unit-test row", "cn_status":"fitted", "cn_error":"0.2", "s02_error":"",
         }
         with self.parameters.open("w", encoding="utf-8", newline="") as handle:
             writer = csv.DictWriter(handle, fieldnames=columns, delimiter="\t", lineterminator="\n")
@@ -93,7 +105,8 @@ class DeliveryBuilderTest(unittest.TestCase):
             encoding="utf-8",
         )
         self.project = self.base / "accepted_fit.dpj"
-        self.project.write_bytes(b"synthetic Artemis project for package tests\n")
+        with zipfile.ZipFile(self.project,'w') as z:
+            for name in ('FIT.SERIALIZATION','structure.yaml','fit.yaml','paths.yaml','gds.yaml'): z.writestr(name,'synthetic unit fixture')
         self.workflow = self.base / "executed_fit_workflow.txt"
         self.workflow.write_text(
             "Input: synthetic chi(k)\nModel: synthetic M-O first shell\n"
@@ -134,7 +147,7 @@ class DeliveryBuilderTest(unittest.TestCase):
 
     def test_build_and_verify_complete_package(self) -> None:
         output = self.base / "delivery"
-        built = subprocess.run(self.command(output), text=True, capture_output=True)
+        built = invoke(self.command(output))
         self.assertEqual(built.returncode, 0, built.stderr)
         payload = json.loads(built.stdout)
         self.assertEqual(payload["status"], "pass")
@@ -150,9 +163,9 @@ class DeliveryBuilderTest(unittest.TestCase):
         )
         workflow = (output / "FIT_WORKFLOW.txt").read_text(encoding="utf-8")
         self.assertIn("R1_data_fit.csv = Fourier transform of k^1*chi(k)", workflow)
-        self.assertIn("Loaded with the matching Demeter project loader.", workflow)
+        self.assertIn("mock runtime boundary", workflow)
 
-        verified = subprocess.run(
+        verified = invoke(
             [sys.executable, str(SCRIPT), "verify", "--package", str(output)],
             text=True, capture_output=True,
         )
@@ -160,7 +173,7 @@ class DeliveryBuilderTest(unittest.TestCase):
 
     def test_audit_profile_remains_available(self) -> None:
         output = self.base / "audit_delivery"
-        built = subprocess.run(self.audit_command(output), text=True, capture_output=True)
+        built = invoke(self.audit_command(output))
         self.assertEqual(built.returncode, 0, built.stderr)
         self.assertTrue((output / "manifest.json").is_file())
         self.assertTrue((output / "00_OPEN_FIRST" / "accepted_fit.dpj").is_file())
@@ -169,7 +182,7 @@ class DeliveryBuilderTest(unittest.TestCase):
         text = self.parameters.read_text(encoding="utf-8").replace("\t0.004\t", "\t-0.004\t")
         self.parameters.write_text(text, encoding="utf-8")
         output = self.base / "bad_delivery"
-        built = subprocess.run(self.command(output), text=True, capture_output=True)
+        built = invoke(self.command(output))
         self.assertEqual(built.returncode, 2)
         self.assertIn("negative sigma2", built.stderr)
 
@@ -177,10 +190,23 @@ class DeliveryBuilderTest(unittest.TestCase):
         self.project = self.base / "not_a_project.txt"
         self.project.write_text("not an Artemis project\n", encoding="utf-8")
         output = self.base / "bad_project_delivery"
-        built = subprocess.run(self.command(output), text=True, capture_output=True)
+        built = invoke(self.command(output))
         self.assertEqual(built.returncode, 2)
         self.assertIn("must be an .fpj or .dpj", built.stderr)
 
+
+    def test_fixed_cn_must_not_masquerade_as_fit(self):
+        text=self.parameters.read_text().replace('\tfitted\t0.2\t','\tfixed\t0.2\t')
+        self.parameters.write_text(text)
+        with self.assertRaises(ValueError): builder.parameter_invariants(self.parameters)
+
+    def test_fixed_cn_with_blank_fit_and_error(self):
+        with self.parameters.open(newline='') as f:
+            reader=csv.DictReader(f,delimiter='\t'); fields=reader.fieldnames; rows=list(reader)
+        rows[0].update(cn_status='fixed',cn_fit='',cn_error='',amplitude_factor='1')
+        with self.parameters.open('w',newline='') as f:
+            w=csv.DictWriter(f,fieldnames=fields,delimiter='\t');w.writeheader();w.writerows(rows)
+        builder.parameter_invariants(self.parameters)
 
 if __name__ == "__main__":
     unittest.main()

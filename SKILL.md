@@ -9,6 +9,8 @@ Build a reproducible chain from raw/reference data to a checked Artemis project.
 
 ## Route the task
 
+- For CIF search, explicit structure generation/modification, K-edge CIF-to-FEFF export, or the executable standard-to-samples pipeline, read [references/structure-and-pipeline.md](references/structure-and-pipeline.md). Use `cif_tools.py` and `fit_pipeline.py`; preserve candidate/accepted distinctions.
+
 - Before fitting, read [references/intake-and-fit-questionnaire.md](references/intake-and-fit-questionnaire.md) and confirm only the missing high-impact items. For unanswered noncritical items, apply and record its conservative defaults.
 - For the complete foil → S0² → sample workflow, read [references/workflow.md](references/workflow.md).
 - For absorber-edge choice, elemental-standard structures, coordination, and k-weight selection across elements, read [references/element-guidance.md](references/element-guidance.md).
@@ -40,12 +42,17 @@ Build a reproducible chain from raw/reference data to a checked Artemis project.
 - `scripts/fetch_reference.py`: download a direct XAS/CIF URL or COD CIF ID, validate the payload, and write a provenance sidecar.
 - `scripts/foil_calibrate.py`: list derivative-peak candidates, then apply a user-reviewed calibration feature without changing row order or non-energy columns.
 - `scripts/run_demeter.ps1`: probe a Windows Demeter bundle and run a Perl/Demeter script in an isolated short-path runtime.
-- `scripts/demeter_first_shell_fit.pl`: reproducible low-parameter first-shell fit with fixed `S0²`, explicit FEFF path indices, and configurable `σ²` grouping.
+- `scripts/demeter_first_shell_fit.pl`: standard mode fits S0² at known CN; sample mode fixes standard-derived S0² with fixed or fitted effective CN and configurable σ² groups.
+- `scripts/cif_tools.py`: COD formula search, symmetry-expanded site inventory, explicit P1 candidate generation, supercells/substitution/vacancies, and K-edge FEFF cluster export.
+- `scripts/fit_pipeline.py`: standard-to-samples runner with input hashes, failure gates, standard-derived S0² and actual DPJ/export consistency checks.
+- `scripts/check_project.py`: validate DPJ archive, actually reload via Demeter, and compare re-exported data and parameters. Free-text attestations cannot bypass this.
 - `scripts/audit_fit_log.py`: machine-check common Artemis/Demeter failure modes.
 - `scripts/suggest_xafs_settings.py`: report absorber/edge cautions, likely elemental-foil structure/CN, and Teo-Lee k-weight suggestions from the actual scatterers.
 - `scripts/build_xafs_delivery.py`: by default validate and assemble the flat nine-file delivery; use `--profile audit` only when extended provenance files are requested.
 
 Use the helpers as building blocks, not as permission to select a phase, derivative peak, or FEFF paths without scientific inspection. If automatic and visual checks disagree, pause before changing calibration or the structural model.
+
+Log audit exit codes are 0=machine checks passed, 2=failed, 3=incomplete/unparseable. None substitutes for scientific acceptance. Parameter schema v3 adds cn_status, cn_error and s02_error. Fixed crystallographic CN must leave cn_fit/cn_error blank; fitted CN requires its uncertainty. Final packaging requires fit_status=accepted after review and a real DPJ reload; FPJ inputs must first be saved as a fit DPJ.
 
 ## Completion contract
 

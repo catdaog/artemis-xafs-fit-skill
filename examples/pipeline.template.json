@@ -1,0 +1,29 @@
+{
+  "standard": {
+    "id": "Mo_standard", "absorber": "Mo", "edge": "K",
+    "data": "REPLACE_standard.chi", "feff": "REPLACE_standard_feff.inp",
+    "datatype": "chi", "known_cn": 8,
+    "paths": [0], "sigma_groups": ["first"],
+    "kmin": 3, "kmax": 12, "rmin": 1, "rmax": 2.5,
+    "calibration_record": "REPLACE with actual foil calibration and preprocessing record",
+    "model_review": "REPLACE: example CN=8 is illustrative; verify standard and full selected shell"
+  },
+  "samples": [
+    {
+      "id": "MoO3", "absorber": "Mo", "edge": "K",
+      "data": "REPLACE_MoO3.chi", "feff": "REPLACE_MoO3_feff.inp",
+      "paths": [0,1], "sigma_groups": ["oxygen","oxygen"],
+      "amplitude_groups": ["oxygen","oxygen"],
+      "calibration_record": "REPLACE with actual calibration batch and preprocessing",
+      "model_review": "REPLACE: verify MoO3 polymorph and complete split Mo-O shell"
+    },
+    {
+      "id": "MoO2", "absorber": "Mo", "edge": "K",
+      "data": "REPLACE_MoO2.chi", "feff": "REPLACE_MoO2_feff.inp",
+      "paths": [0,1], "sigma_groups": ["oxygen","oxygen"],
+      "amplitude_groups": ["oxygen","oxygen"],
+      "calibration_record": "REPLACE with actual calibration batch and preprocessing",
+      "model_review": "REPLACE: verify MoO2 phase and actual FEFF path indices"
+    }
+  ]
+}
