@@ -1,6 +1,6 @@
 interface:
-  display_name: "Artemis XAFS Fit Skill"
-  short_description: "Fit XAFS and export compact Artemis result files"
-  default_prompt: "Use $artemis-xafs-fit-skill to calibrate and fit my EXAFS data, then deliver the DPJ, k1/k2/k3, R1/R2/R3, one parameter table, and workflow TXT."
+  display_name: "XAFS Fit: Artemis + FDMNES"
+  short_description: "Fit EXAFS and refine XANES structures with real FDMNES"
+  default_prompt: "Use $artemis-xafs-fit-skill to fit my EXAFS or XANES data with the appropriate engine and deliver verified numerical results, model comparisons, and reproducible calculation files."
 policy:
   allow_implicit_invocation: true

@@ -1,11 +1,15 @@
 # Artemis XAFS Fit Skill
 
+v1.4.0 (2026-10-27) XANES integration: the same skill now calls the real FDMNES engine for near-edge simulations, radius checks, candidate-model comparison and bounded geometry refinement. See the [XANES/FDMNES workflow and runnable commands](references/xanes-fdmnes.md) and [illustrative configuration](examples/xanes/fe-n4.json). Install `requirements-xanes.txt` for this branch. FDMNES is downloaded separately from its official distribution; runtime binaries are not redistributed in the source package. XANES uses its own deliverables and does not require S0² or an Artemis DPJ.
+
+近边调用示例：`使用 $artemis-xafs-fit-skill，对我的单原子样品进行 FDMNES 近边计算与结构拟合，比较候选模型并交付残差、数值结果和可复现文件。` 图谱截图可用于解释；实际拟合需要数值谱和结构依据。
+
 2026-10 upgrade: fail-closed log audit; explicit fixed/fitted CN; actual DPJ reload/export verification; COD formula search; provenance-preserving CIF generation, supercells, substitutions and vacancies; K-edge CIF-to-FEFF clusters; standard-derived S0² to batch sample fitting. Install `requirements.txt` for CIF tools. See [structure and pipeline guide](references/structure-and-pipeline.md) and [Mo example configuration](examples/pipeline.template.json). Constructed structures are unrelaxed candidates; successful execution still requires scientific review.
 
 [![test](https://github.com/catdaog/artemis-xafs-fit-skill/actions/workflows/test.yml/badge.svg)](https://github.com/catdaog/artemis-xafs-fit-skill/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-[中文](#中文) | [English](#english)
+[中文](#中文) | [English](#english) | [更新日志 / Changelog](CHANGELOG.md)
 
 ---
 

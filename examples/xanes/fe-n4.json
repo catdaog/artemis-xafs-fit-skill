@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "absorber": "Fe",
+  "edge": "K",
+  "calculation": {
+    "method": "fdm",
+    "scf": false,
+    "quadrupole": false,
+    "radius_A": 3.0,
+    "range_eV": [-25, 1, 90],
+    "convolution": {},
+    "convergence_radii_A": [3, 4, 5],
+    "convergence_relative_rms_tolerance": 0.01
+  },
+  "experiment": {
+    "data_kind": "experimental",
+    "path": "experimental.csv",
+    "energy_column": 0,
+    "mu_column": 1,
+    "edge_energy_eV": 7112,
+    "calibration_shift_eV": 0,
+    "calibration_basis": "Unknown: replace with the actual beamline/reference convention before interpreting shifts.",
+    "normalization": "already_normalized"
+  },
+  "fit": {
+    "window_eV": [7107, 7142],
+    "shift_eV": {"initial": 0, "bounds": [-5, 5], "step": 0.05},
+    "gaussian_sigma_eV": {"fixed": 0.5},
+    "amplitude": {"initial": 30, "bounds": [1, 100], "step": 0.1},
+    "offset": {"fixed": 0},
+    "additional_starts": [{"fe_n_A": 2.06}]
+  },
+  "limits": {"timeout_seconds": 600, "max_engine_runs": 150, "max_nfev": 40},
+  "models": [
+    {
+      "id": "FeN4_toy",
+      "provenance": "ILLUSTRATIVE five-atom square-planar cluster for software testing only. No carbon support, no verified oxidation/spin state; not a publishable catalyst model.",
+      "absorber_index": 0,
+      "atoms": [
+        {"element": "Fe", "xyz": [0, 0, 0]},
+        {"element": "N", "xyz": [2, 0, 0]},
+        {"element": "N", "xyz": [-2, 0, 0]},
+        {"element": "N", "xyz": [0, 2, 0]},
+        {"element": "N", "xyz": [0, -2, 0]}
+      ],
+      "parameters": [
+        {"name": "fe_n_A", "reference": 2, "initial": 1.96, "bounds": [1.85, 2.15], "step": 0.01, "radial_atoms": [1, 2, 3, 4]}
+      ]
+    }
+  ]
+}

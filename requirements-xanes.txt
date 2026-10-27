@@ -1,0 +1,4 @@
+# Install alongside the existing requirements.txt for the XANES branch.
+numpy>=1.26,<3
+scipy>=1.12,<2
+matplotlib>=3.8,<4

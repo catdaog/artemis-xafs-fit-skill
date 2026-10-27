@@ -1,13 +1,19 @@
 ---
 name: artemis-xafs-fit-skill
-description: Calibrate XAFS standards, determine S0², build verified FEFF paths, run and audit staged Athena/Artemis EXAFS fits, and deliver a compact DPJ plus k1/k2/k3, R1/R2/R3, parameter-table, and workflow record. Use for energy correction, foil or compound standards, CIF/FEFF setup, coordination-number fits, numerical fit exports, or reproducible multi-element XAFS workflows; not for XANES linear-combination fitting alone.
+description: Fit and audit XAFS using Athena/Artemis/FEFF for EXAFS and real FDMNES calculations for XANES near-edge simulation, single-atom candidate-model comparison, and geometry refinement. Use for energy calibration, standard-derived S0², CIF/cluster setup, coordination-number fitting, near-edge structural fitting, and reproducible numerical exports; not for reference-only XANES linear-combination fitting.
 ---
 
 # Artemis XAFS Fit Skill
 
-Build a reproducible chain from raw/reference data to a checked Artemis project. Keep downloaded evidence, calibration choices, FEFF input, fit project, logs, numerical exports, and a short decision record together. Never overwrite the user's source project.
+Build a reproducible chain from raw/reference data to checked EXAFS or XANES results. Preserve source data and projects. Keep structure provenance, calibration choices, actual engine inputs/outputs, numerical exports, and the model decision record.
 
 ## Route the task
+
+- **XANES / 近边 / FDMNES / single-atom near-edge fitting:** read [references/xanes-fdmnes.md](references/xanes-fdmnes.md). Use `scripts/run_xanes.ps1` on Windows or `fdmnes_runtime.py`, `xanes_cluster.py`, and `xanes_fit.py` directly. Follow that branch's intake and completion contract. The EXAFS S0², k/R-window, FEFF-path, and DPJ requirements below do not apply to a XANES-only task. Reference-spectrum linear combinations are a different method and are not implemented by this branch.
+- **Combined XANES + EXAFS:** execute and label each branch separately; use EXAFS as independent structural constraints and compare the combined evidence. Do not apply one branch's output verifier to the other.
+- **EXAFS:** follow the existing routes and invariants below.
+
+The remaining routes in this section apply to EXAFS.
 
 - For CIF search, explicit structure generation/modification, K-edge CIF-to-FEFF export, or the executable standard-to-samples pipeline, read [references/structure-and-pipeline.md](references/structure-and-pipeline.md). Use `cif_tools.py` and `fit_pipeline.py`; preserve candidate/accepted distinctions.
 
@@ -21,7 +27,7 @@ Build a reproducible chain from raw/reference data to a checked Artemis project.
 - Before downloading spectra or CIFs, read [references/sources.md](references/sources.md). Verify live URLs and licensing; record URL, retrieval time, hash, phase, and citation.
 - When calling Demeter programmatically or repairing/rerunning an FPJ/DPJ, read [references/demeter-api.md](references/demeter-api.md).
 
-## Required scientific invariants
+## EXAFS scientific invariants
 
 0. First confirm the experimental purpose, absorber/edge, sample/reference mapping, calibration basis, structural model, and which parameters are fixed or fitted. Do not repeat information already present in the files or conversation, and do not ask the user to supply a numerical `S0²`; derive it from the same-edge standard.
 1. Calibrate the simultaneously measured foil or accepted compound standard before fitting the standard or sample. Inspect `dμ/dE`; do not equate “highest derivative peak” with the correct feature for every edge. Use the beamline's stated calibration convention and record it. For Mo K-edge foil, use the first clear lower-energy inflection feature and set it to 20000 eV; the stronger second peak is not the calibration point.
@@ -39,6 +45,10 @@ Build a reproducible chain from raw/reference data to a checked Artemis project.
 
 ## Reusable helpers
 
+- `scripts/fdmnes_runtime.py`: locate/install an explicitly selected official FDMNES distribution and run real, isolated calculations with timeout, executable/input/output hashes, logs, and failure checks.
+- `scripts/xanes_cluster.py`: extract a symmetry-expanded, fully occupied Cartesian cluster from a checked CIF, with absorber/site mapping and provenance.
+- `scripts/xanes_fit.py`: actual simulation, radius convergence checks, staged spectral alignment and bounded geometry refinement; each changed geometry is recalculated by FDMNES. Export native spectra, residuals, conditional uncertainties, multi-start/model comparisons, and a workflow record.
+- `scripts/run_xanes.ps1`: Windows launcher for probe/install/simulate/converge/fit; skips the unusable WindowsApps Python alias.
 - `scripts/fetch_reference.py`: download a direct XAS/CIF URL or COD CIF ID, validate the payload, and write a provenance sidecar.
 - `scripts/foil_calibrate.py`: list derivative-peak candidates, then apply a user-reviewed calibration feature without changing row order or non-energy columns.
 - `scripts/run_demeter.ps1`: probe a Windows Demeter bundle and run a Perl/Demeter script in an isolated short-path runtime.
@@ -54,7 +64,7 @@ Use the helpers as building blocks, not as permission to select a phase, derivat
 
 Log audit exit codes are 0=machine checks passed, 2=failed, 3=incomplete/unparseable. None substitutes for scientific acceptance. Parameter schema v3 adds cn_status, cn_error and s02_error. Fixed crystallographic CN must leave cn_fit/cn_error blank; fitted CN requires its uncertainty. Final packaging requires fit_status=accepted after review and a real DPJ reload; FPJ inputs must first be saved as a fit DPJ.
 
-## Completion contract
+## EXAFS completion contract
 
 When a fit was actually run, completion requires the validated flat directory defined in [references/deliverables.md](references/deliverables.md): one `<final-fit>.dpj`, `k1_data_fit.csv` through `k3_data_fit.csv`, `R1_data_fit.csv` through `R3_data_fit.csv`, one `fit_parameters.tsv`, and one `FIT_WORKFLOW.txt`. Do not include duplicate parameter formats or extra folders by default.
 

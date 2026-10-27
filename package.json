@@ -1,7 +1,7 @@
 {
   "name": "@catdaog/artemis-xafs-fit-skill",
-  "version": "1.3.0",
-  "description": "Reproducible Athena, FEFF, and Artemis workflows for multi-element XAFS fitting.",
+  "version": "1.4.0",
+  "description": "Reproducible EXAFS fitting with Artemis and XANES structure refinement with real FDMNES.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/catdaog/artemis-xafs-fit-skill.git"
@@ -13,12 +13,16 @@
     "exafs",
     "athena",
     "artemis",
-    "feff"
+    "feff",
+    "xanes",
+    "fdmnes"
   ],
   "files": [
     "SKILL.md",
     "README.md",
+    "CHANGELOG.md",
     "requirements.txt",
+    "requirements-xanes.txt",
     "examples/",
     "agents/",
     "references/",
