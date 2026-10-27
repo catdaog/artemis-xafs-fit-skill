@@ -20,6 +20,7 @@
   "files": [
     "SKILL.md",
     "README.md",
+    "README.*.md",
     "CHANGELOG.md",
     "requirements.txt",
     "requirements-xanes.txt",

@@ -1,5 +1,13 @@
 # 更新日志 / Changelog
 
+## 未发布 / Unreleased
+
+- 整理首页，以并列表格展示 EXAFS 与 XANES 两种拟合的输入、程序、流程和交付。
+- 新增德语、日语和法语完整快速使用页；中文、英文同步采用相同结构和语言导航。
+- 保留原有中英文 EXAFS 长篇说明为详细指南，并修正迁移后的相对链接。
+- 将多语言 README 纳入后续分发包；本次仅更新文档与打包清单，不改变拟合程序。
+- Reorganizes the two-workflow homepage, adds German/Japanese/French quick starts, and preserves the detailed Chinese/English EXAFS guides.
+
 ## v1.4.0 — 2026-10-27
 
 ### 新增 / Added
