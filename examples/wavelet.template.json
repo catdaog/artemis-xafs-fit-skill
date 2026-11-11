@@ -1,0 +1,38 @@
+{
+  "kappa": 10.0,
+  "sigma": 1.0,
+  "kweight": 2,
+  "kmin": 3.0,
+  "kmax": 12.0,
+  "kstep": 0.05,
+  "rmin": 0.0,
+  "rmax": 6.0,
+  "rstep": 0.02,
+  "window": "hanning",
+  "dk": 1.0,
+  "spectra": [
+    {
+      "id": "sample",
+      "file": "REPLACE_chi_k.dat",
+      "k_column": 1,
+      "chi_column": 2,
+      "input_kweight": 0,
+      "role": "data"
+    },
+    {
+      "id": "model",
+      "file": "REPLACE_fit_k1.dat",
+      "k_column": 1,
+      "chi_column": 3,
+      "input_kweight": 1,
+      "role": "fit"
+    }
+  ],
+  "residuals": [
+    {
+      "id": "residual",
+      "data": "sample",
+      "fit": "model"
+    }
+  ]
+}

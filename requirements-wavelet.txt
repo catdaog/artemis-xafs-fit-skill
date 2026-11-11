@@ -1,0 +1,2 @@
+# Optional EXAFS Morlet wavelet branch; no GUI or external XAFS engine required.
+numpy>=1.26,<3

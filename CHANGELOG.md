@@ -1,11 +1,17 @@
 # 更新日志 / Changelog
 
-## 未发布 / Unreleased
+## v1.5.0 — 2026-11-11
+
+- 新增 NumPy Morlet EXAFS 小波分支，默认 κ=10、σ=1，明确母小波、零均值校正、尺度到 R 的换算与归一化定义。
+- 新增 Origin 可导入的纯数值幅值矩阵（行 R、列 k）、独立共享归一化矩阵、复系数、坐标/参数记录和数值读回核验。
+- 支持独立 χ(k) 处理、统一网格批量比较，以及 χ实验−χ拟合残差的小波分析；输入已加 k 权重时显式去权。
+- 新增 Windows 启动器、可选 NumPy 依赖、小波配置模板、方法指南及拟合后可选小波调用；WT 与九文件拟合交付分别核验。
+- Add reproducible Morlet EXAFS WT with explicit κ=10/σ=1 convention, Origin matrices, complex residual analysis, shared normalization and readback verification. Standalone WT does not require a fitted model or DPJ.
 
 - 整理首页，以并列表格展示 EXAFS 与 XANES 两种拟合的输入、程序、流程和交付。
 - 新增德语、日语和法语完整快速使用页；中文、英文同步采用相同结构和语言导航。
 - 保留原有中英文 EXAFS 长篇说明为详细指南，并修正迁移后的相对链接。
-- 将多语言 README 纳入后续分发包；本次仅更新文档与打包清单，不改变拟合程序。
+- 将多语言 README 和可选小波依赖清单纳入分发包。
 - Reorganizes the two-workflow homepage, adds German/Japanese/French quick starts, and preserves the detailed Chinese/English EXAFS guides.
 
 ## v1.4.0 — 2026-10-27

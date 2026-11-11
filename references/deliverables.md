@@ -4,6 +4,8 @@ Schema v3 update: append `cn_status`, `cn_error`, `s02_error` to parameter table
 
 Use this reference whenever a standard or sample fit was run. Return numerical files, not only plots or prose.
 
+For a standalone EXAFS wavelet transform, use [wavelet.md](wavelet.md) instead: no fit or DPJ is required. If both fitting and WT are requested, deliver the verified WT matrices and metadata in a separate directory alongside the fit package. Do not add WT files to the strict nine-file fit directory or apply the DPJ verifier to a WT-only result.
+
 ## Default: minimal nine-file package
 
 The default package is flat and contains only:

@@ -1,6 +1,6 @@
 ---
 name: artemis-xafs-fit-skill
-description: Fit and audit XAFS using Athena/Artemis/FEFF for EXAFS and real FDMNES calculations for XANES near-edge simulation, single-atom candidate-model comparison, and geometry refinement. Use for energy calibration, standard-derived S0², CIF/cluster setup, coordination-number fitting, near-edge structural fitting, and reproducible numerical exports; not for reference-only XANES linear-combination fitting.
+description: Fit and audit EXAFS with Athena/Artemis/FEFF, compute Morlet EXAFS wavelet matrices for Origin, and simulate/refine XANES with real FDMNES. Use for energy calibration, standard-derived S0², structural models, coordination-number fitting, k–R wavelet analysis, and reproducible numerical exports; not reference-only XANES linear-combination fitting.
 ---
 
 # Artemis XAFS Fit Skill
@@ -9,6 +9,7 @@ Build a reproducible chain from raw/reference data to checked EXAFS or XANES res
 
 ## Route the task
 
+- **EXAFS wavelet / 小波变换 / Morlet / Origin k–R matrix:** read [references/wavelet.md](references/wavelet.md). Use `scripts/exafs_wavelet.py` or the Windows launcher `scripts/run_wavelet.ps1`. A standalone transform needs numerical χ(k) and its preprocessing/column definitions; it does not require an S0² calibration, FEFF calculation, fit, or DPJ. For a fit plus WT, execute and validate both branches and deliver their packages separately. This route is for EXAFS, not μ(E) or XANES.
 - **XANES / 近边 / FDMNES / single-atom near-edge fitting:** read [references/xanes-fdmnes.md](references/xanes-fdmnes.md). Use `scripts/run_xanes.ps1` on Windows or `fdmnes_runtime.py`, `xanes_cluster.py`, and `xanes_fit.py` directly. Follow that branch's intake and completion contract. The EXAFS S0², k/R-window, FEFF-path, and DPJ requirements below do not apply to a XANES-only task. Reference-spectrum linear combinations are a different method and are not implemented by this branch.
 - **Combined XANES + EXAFS:** execute and label each branch separately; use EXAFS as independent structural constraints and compare the combined evidence. Do not apply one branch's output verifier to the other.
 - **EXAFS:** follow the existing routes and invariants below.
@@ -45,6 +46,8 @@ The remaining routes in this section apply to EXAFS.
 
 ## Reusable helpers
 
+- `scripts/exafs_wavelet.py`: complex Morlet EXAFS WT with κ=10/σ=1 defaults, explicit k weighting and scale-to-R mapping, shared-grid batch/residual analysis, Origin matrices, and numerical readback verification. See the wavelet reference for the exact formula; `cmor10-1` is not its parameter equivalent.
+- `scripts/run_wavelet.ps1`: Windows launcher for numerical WT generation and verification using a real Python executable.
 - `scripts/fdmnes_runtime.py`: locate/install an explicitly selected official FDMNES distribution and run real, isolated calculations with timeout, executable/input/output hashes, logs, and failure checks.
 - `scripts/xanes_cluster.py`: extract a symmetry-expanded, fully occupied Cartesian cluster from a checked CIF, with absorber/site mapping and provenance.
 - `scripts/xanes_fit.py`: actual simulation, radius convergence checks, staged spectral alignment and bounded geometry refinement; each changed geometry is recalculated by FDMNES. Export native spectra, residuals, conditional uncertainties, multi-start/model comparisons, and a workflow record.
@@ -69,3 +72,7 @@ Log audit exit codes are 0=machine checks passed, 2=failed, 3=incomplete/unparse
 When a fit was actually run, completion requires the validated flat directory defined in [references/deliverables.md](references/deliverables.md): one `<final-fit>.dpj`, `k1_data_fit.csv` through `k3_data_fit.csv`, `R1_data_fit.csv` through `R3_data_fit.csv`, one `fit_parameters.tsv`, and one `FIT_WORKFLOW.txt`. Do not include duplicate parameter formats or extra folders by default.
 
 `FIT_WORKFLOW.txt` must record inputs, calibration/preprocessing basis, structure/path model, fixed and fitted parameters, k/R windows, fit weights, constraints, model decision, export steps, DPJ integrity check, and source-file modification status. Reopen/load the project, run `scripts/build_xafs_delivery.py` in its default minimal profile, then run `verify`. Preserve all source and audit files outside the default package. If the DPJ is absent or cannot be opened, do not call the delivery complete. A fit is not complete merely because an Artemis plot or low R-factor exists.
+
+## Wavelet completion contract
+
+For a requested WT, deliver the verified numerical package defined in [references/wavelet.md](references/wavelet.md): raw amplitude matrices with rows R/columns k, separately labelled shared-normalized matrices, complex coefficients, axis/algorithm/input records, and Origin import instructions. Run the WT verifier and report what actually ran. Record the Morlet formula, κ/σ, scale-to-R mapping, k weight, input weighting, common measured support, taper, boundary influence and normalization. R is apparent and uncorrected for scattering phase. A WT maximum alone does not identify an element, determine CN, or increase the number of independent EXAFS observations.

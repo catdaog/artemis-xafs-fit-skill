@@ -1,7 +1,7 @@
 {
   "name": "@catdaog/artemis-xafs-fit-skill",
-  "version": "1.4.0",
-  "description": "Reproducible EXAFS fitting with Artemis and XANES structure refinement with real FDMNES.",
+  "version": "1.5.0",
+  "description": "Reproducible EXAFS fitting, Morlet wavelet matrices for Origin, and XANES refinement with real FDMNES.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/catdaog/artemis-xafs-fit-skill.git"
@@ -15,7 +15,10 @@
     "artemis",
     "feff",
     "xanes",
-    "fdmnes"
+    "fdmnes",
+    "morlet",
+    "wavelet",
+    "origin"
   ],
   "files": [
     "SKILL.md",
@@ -24,6 +27,7 @@
     "CHANGELOG.md",
     "requirements.txt",
     "requirements-xanes.txt",
+    "requirements-wavelet.txt",
     "examples/",
     "agents/",
     "references/",
